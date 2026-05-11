@@ -315,7 +315,7 @@ function ParticleNetwork() {
   );
 }
 
-export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }: LandingPageProps) {
+function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }: LandingPageProps) {
   const { language, setLanguage } = useT();
   const isEs = language === 'es';
   const [scrollY, setScrollY] = useState(0);
@@ -797,5 +797,7 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
     </div>
   );
 }
+
+export default LandingPage
 
 export default LandingPage
