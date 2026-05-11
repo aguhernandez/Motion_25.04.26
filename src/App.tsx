@@ -13,6 +13,7 @@ import Header from './components/layout/Header';
 import MobileTopBar from './components/layout/MobileTopBar';
 import MobileBottomNav from './components/layout/MobileBottomNav';
 import LoginPage from './components/auth/LoginPage';
+import LandingPage from './components/auth/LandingPage';
 import Dashboard from './components/views/Dashboard';
 import SessionsView from './components/views/SessionsView';
 import AthletesView from './components/views/AthletesView';
@@ -293,7 +294,7 @@ export default function App() {
     }
     return (
       <LanguageContext.Provider value={{ language, setLanguage, t, darkMode, onToggleDark: toggleDark }}>
-        <LoginPage darkMode={darkMode} onToggleDark={toggleDark} onLogin={login} />
+        <LandingPage darkMode={darkMode} onToggleDark={toggleDark} onLogin={login} />
       </LanguageContext.Provider>
     );
   }
