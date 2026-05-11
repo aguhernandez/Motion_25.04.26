@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Eye, EyeOff, ExternalLink, Activity, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Eye, EyeOff, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
 import { useT } from '../../lib/LanguageContext';
 
 interface LoginModalProps {
@@ -102,21 +102,23 @@ export default function LoginModal({ onClose, onLoginWithCredentials, onLoginWit
 
           {/* Brand lockup */}
           <div className="flex flex-col items-center text-center">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #fdda36 0%, #f9a825 100%)', boxShadow: '0 8px 24px rgba(253,218,54,0.3)' }}
-            >
-              <Activity className="w-7 h-7" style={{ color: '#0a0f1a' }} />
-            </div>
+            <img
+              src="/Asciendefavicon.png"
+              alt="Asciende"
+              className="w-16 h-16 object-contain mb-4"
+            />
+            <img
+              src="/asciende_the_athletes_support_platform.png"
+              alt="Asciende — The Athletes' Support Platform"
+              className="h-5 w-auto object-contain mb-3"
+              style={{ filter: 'brightness(0) invert(1)', opacity: 0.8 }}
+            />
             <h2
-              className="text-xl tracking-widest mb-1.5"
+              className="text-base tracking-widest"
               style={{ fontFamily: '"Krona One", sans-serif', color: '#fdda36' }}
             >
               BIOMECHANIC
             </h2>
-            <p className="text-xs" style={{ fontFamily: 'Jost, sans-serif', color: 'rgba(255,255,255,0.35)' }}>
-              Asciende Ecosystem
-            </p>
           </div>
         </div>
 

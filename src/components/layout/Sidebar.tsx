@@ -81,25 +81,31 @@ export default function Sidebar({ activeView, onViewChange, darkMode, onToggleDa
         className="flex items-center gap-3 px-4 py-5 border-b overflow-hidden"
         style={{ borderColor: th.border, minHeight: '72px' }}
       >
+        {/* Collapsed: show favicon; Expanded: show full logo */}
+        {expanded ? (
+          <img
+            src="/asciende_the_athletes_support_platform.png"
+            alt="Asciende"
+            className="flex-shrink-0 h-8 w-auto object-contain transition-all duration-300"
+            style={{ filter: darkMode ? 'brightness(0) invert(1)' : 'none', maxWidth: '140px' }}
+          />
+        ) : (
+          <img
+            src="/Asciendefavicon.png"
+            alt="Asciende"
+            className="flex-shrink-0 w-9 h-9 object-contain transition-all duration-300"
+          />
+        )}
         <div
-          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #fdda36 0%, #f9a825 100%)' }}
-        >
-          <Activity className="w-5 h-5" style={{ color: '#514163' }} />
-        </div>
-        <div
-          className="overflow-hidden transition-all duration-300"
+          className="overflow-hidden transition-all duration-300 flex-shrink-0"
           style={{ width: expanded ? 'auto' : '0', opacity: expanded ? 1 : 0 }}
         >
           <span
             className="block font-heading text-xs tracking-widest whitespace-nowrap"
             style={{ color: darkMode ? '#fdda36' : '#514163' }}
           >
-            BIOMECHANIC LAB
+            BIOMECHANIC
           </span>
-          <p className="text-xs whitespace-nowrap" style={{ color: th.textSecondary }}>
-            {t.app.tagline}
-          </p>
         </div>
       </div>
 
