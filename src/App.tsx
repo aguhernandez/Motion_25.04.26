@@ -12,7 +12,6 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileTopBar from './components/layout/MobileTopBar';
 import MobileBottomNav from './components/layout/MobileBottomNav';
-import LoginPage from './components/auth/LoginPage';
 import LandingPage from './components/auth/LandingPage';
 import Dashboard from './components/views/Dashboard';
 import SessionsView from './components/views/SessionsView';
@@ -58,7 +57,7 @@ export default function App() {
   }, [darkMode]);
 
   const { language, setLanguage, t } = useLanguage();
-  const { user, loading: authLoading, logout: signOut, login, isDevMode, setDevProfile } = useAuth();
+  const { user, loading: authLoading, logout: signOut, login, loginWithCredentials, isDevMode, setDevProfile } = useAuth();
 
   const { athletes, createAthlete, updateAthlete, deleteAthlete } = useAthletes();
   const { sessions, createSession, deleteSession, fetchSessions } = useSessions();
@@ -294,7 +293,7 @@ export default function App() {
     }
     return (
       <LanguageContext.Provider value={{ language, setLanguage, t, darkMode, onToggleDark: toggleDark }}>
-        <LandingPage darkMode={darkMode} onToggleDark={toggleDark} onLogin={login} />
+        <LandingPage darkMode={darkMode} onToggleDark={toggleDark} onLogin={login} onLoginWithCredentials={loginWithCredentials} />
       </LanguageContext.Provider>
     );
   }

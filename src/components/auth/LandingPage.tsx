@@ -6,11 +6,13 @@ import {
   Bike, PersonStanding, Waves, Dumbbell, Wind, BarChart2,
 } from 'lucide-react';
 import { useT } from '../../lib/LanguageContext';
+import LoginModal from './LoginModal';
 
 interface LandingPageProps {
   darkMode: boolean;
   onToggleDark: () => void;
   onLogin: () => void;
+  onLoginWithCredentials: (email: string, password: string) => Promise<{ error?: string }>;
 }
 
 // Animated angle lines for hero overlay
@@ -163,12 +165,15 @@ function EcoNode({ label, sub, color, isCenter }: { label: string; sub: string; 
   );
 }
 
-export default function LandingPage({ darkMode, onToggleDark, onLogin }: LandingPageProps) {
+export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }: LandingPageProps) {
   const { language, setLanguage } = useT();
   const isEs = language === 'es';
   const [scrollY, setScrollY] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const openLogin = () => setShowLoginModal(true);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
@@ -248,7 +253,7 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin }: Landing
             {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={onLogin}
+            onClick={openLogin}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
             style={{ background: '#fdda36', color: '#0a0f1a' }}
             onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(253,218,54,0.4)'; }}
@@ -307,7 +312,7 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin }: Landing
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={onLogin}
+              onClick={openLogin}
               className="flex items-center gap-2.5 px-7 py-4 rounded-xl font-bold text-base transition-all duration-200"
               style={{ background: '#fdda36', color: '#0a0f1a' }}
               onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(253,218,54,0.45)'; }}
@@ -603,7 +608,7 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin }: Landing
               : 'Access the complete biomechanical analysis system with your Hub account.'}
           </p>
           <button
-            onClick={onLogin}
+            onClick={openLogin}
             className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-200"
             style={{ background: '#fdda36', color: '#0a0f1a' }}
             onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(253,218,54,0.5)'; }}
@@ -633,6 +638,14 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin }: Landing
           </p>
         </div>
       </footer>
+
+      {showLoginModal && (
+        <LoginModal
+          onClose={() => setShowLoginModal(false)}
+          onLoginWithCredentials={onLoginWithCredentials}
+          onLoginWithHub={onLogin}
+        />
+      )}
     </div>
   );
 }

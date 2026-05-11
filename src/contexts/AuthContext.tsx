@@ -40,6 +40,7 @@ interface AuthContextType {
   hasToken: boolean;
   isDevMode: boolean;
   login: () => void;
+  loginWithCredentials: (email: string, password: string) => Promise<{ error?: string }>;
   logout: () => void;
   setDevProfile: (profile: Profile) => void;
   toggleDevMode: (enabled: boolean) => void;
@@ -48,7 +49,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: hubUser, loading: hubLoading, hasToken, login: hubLogin, logout: hubLogout } = useSatelliteAuth();
+  const { user: hubUser, loading: hubLoading, hasToken, login: hubLogin, loginWithCredentials: hubLoginWithCredentials, logout: hubLogout } = useSatelliteAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isDevMode, setIsDevMode] = useState<boolean>(getDevModePreference);
   const [devUser, setDevUser] = useState<HubUser | null>(null);
@@ -118,6 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hubLogin();
   };
 
+  const loginWithCredentials = async (email: string, password: string): Promise<{ error?: string }> => {
+    if (isDevMode) return {};
+    return hubLoginWithCredentials(email, password);
+  };
+
   const logout = () => {
     if (isDevMode) {
       setDevProfileState(null);
@@ -140,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasToken: effectiveHasToken,
       isDevMode,
       login,
+      loginWithCredentials,
       logout,
       setDevProfile,
       toggleDevMode,
