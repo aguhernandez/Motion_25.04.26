@@ -229,12 +229,9 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
           borderBottom: scrollY > 60 ? '1px solid rgba(255,255,255,0.06)' : 'none',
         }}
       >
-        <div className="flex items-center gap-3">
-          <img src="/Asciendefavicon.png" alt="Asciende" className="w-8 h-8 object-contain" />
-          <div className="flex flex-col leading-none">
-            <img src="/asciende_the_athletes_support_platform.png" alt="Asciende" className="h-4 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)', opacity: 0.85 }} />
-            <span className="text-xs tracking-widest mt-0.5" style={{ fontFamily: '"Krona One", sans-serif', color: '#fdda36', fontSize: '9px' }}>BIOMECHANIC</span>
-          </div>
+        <div className="flex items-center gap-2">
+          <img src="/asciende_the_athletes_support_platform.png" alt="Asciende" className="h-6 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)', opacity: 0.85 }} />
+          <span className="text-xs tracking-widest" style={{ fontFamily: '"Krona One", sans-serif', color: 'rgba(253,218,54,0.7)', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '8px' }}>BIOMECHANIC</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -628,12 +625,9 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
       {/* ── FOOTER ── */}
       <footer className="py-10 px-6" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src="/Asciendefavicon.png" alt="Asciende" className="w-7 h-7 object-contain opacity-60" />
-            <div className="flex flex-col leading-none gap-0.5">
-              <img src="/asciende_the_athletes_support_platform.png" alt="Asciende" className="h-3 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)', opacity: 0.35 }} />
-              <span style={{ fontFamily: '"Krona One", sans-serif', color: 'rgba(253,218,54,0.35)', fontSize: '8px', letterSpacing: '0.15em' }}>BIOMECHANIC</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <img src="/asciende_the_athletes_support_platform.png" alt="Asciende" className="h-4 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)', opacity: 0.3 }} />
+            <span style={{ fontFamily: '"Krona One", sans-serif', color: 'rgba(253,218,54,0.3)', fontSize: '8px', letterSpacing: '0.15em', borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: '8px' }}>BIOMECHANIC</span>
           </div>
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
             {isEs ? '© 2025 Asciende Ecosystem. Sistema de análisis biomecánico.' : '© 2025 Asciende Ecosystem. Biomechanical analysis system.'}
