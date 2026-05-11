@@ -799,5 +799,3 @@ function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }
 }
 
 export default LandingPage
-
-export default LandingPage
