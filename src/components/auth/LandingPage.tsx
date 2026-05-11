@@ -165,6 +165,156 @@ function EcoNode({ label, sub, color, isCenter }: { label: string; sub: string; 
   );
 }
 
+// Interactive particle network canvas for hero background
+function ParticleNetwork() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouse = useRef({ x: -9999, y: -9999 });
+  const animRef = useRef<number>(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const COUNT = 90;
+    const CONNECT_DIST = 140;
+    const MOUSE_REPEL = 120;
+    const SPEED = 0.35;
+
+    type Particle = {
+      x: number; y: number;
+      vx: number; vy: number;
+      ox: number; oy: number; // original position
+      r: number;
+    };
+
+    let W = 0, H = 0;
+    const particles: Particle[] = [];
+
+    const resize = () => {
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      canvas.width = W;
+      canvas.height = H;
+    };
+
+    const init = () => {
+      particles.length = 0;
+      for (let i = 0; i < COUNT; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        particles.push({
+          x, y, ox: x, oy: y,
+          vx: (Math.random() - 0.5) * SPEED,
+          vy: (Math.random() - 0.5) * SPEED,
+          r: Math.random() * 1.8 + 0.8,
+        });
+      }
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      const mx = mouse.current.x;
+      const my = mouse.current.y;
+
+      // Update positions
+      for (const p of particles) {
+        // Drift
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce off edges
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        p.x = Math.max(0, Math.min(W, p.x));
+        p.y = Math.max(0, Math.min(H, p.y));
+
+        // Mouse attraction/repulsion
+        const dx = mx - p.x;
+        const dy = my - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MOUSE_REPEL && dist > 0) {
+          const force = (MOUSE_REPEL - dist) / MOUSE_REPEL;
+          // attract gently toward cursor
+          p.x += (dx / dist) * force * 1.8;
+          p.y += (dy / dist) * force * 1.8;
+        }
+      }
+
+      // Draw edges
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i];
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < CONNECT_DIST) {
+            // Boost opacity if either particle is near mouse
+            const da = Math.sqrt((mx - a.x) ** 2 + (my - a.y) ** 2);
+            const db = Math.sqrt((mx - b.x) ** 2 + (my - b.y) ** 2);
+            const nearMouse = Math.min(da, db) < MOUSE_REPEL * 1.5;
+            const baseAlpha = (1 - d / CONNECT_DIST) * (nearMouse ? 0.55 : 0.12);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = nearMouse
+              ? `rgba(253,218,54,${baseAlpha})`
+              : `rgba(255,255,255,${baseAlpha})`;
+            ctx.lineWidth = nearMouse ? 0.8 : 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw nodes
+      for (const p of particles) {
+        const dd = Math.sqrt((mx - p.x) ** 2 + (my - p.y) ** 2);
+        const nearMouse = dd < MOUSE_REPEL * 1.5;
+        const alpha = nearMouse ? 0.9 : 0.3;
+        const radius = nearMouse ? p.r * 1.8 : p.r;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = nearMouse ? `rgba(253,218,54,${alpha})` : `rgba(255,255,255,${alpha})`;
+        ctx.fill();
+      }
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    const onMouseLeave = () => { mouse.current = { x: -9999, y: -9999 }; };
+
+    const ro = new ResizeObserver(() => { resize(); init(); });
+    ro.observe(canvas);
+    resize();
+    init();
+    draw();
+
+    canvas.closest('section')?.addEventListener('mousemove', onMouseMove);
+    canvas.closest('section')?.addEventListener('mouseleave', onMouseLeave);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      ro.disconnect();
+      canvas.closest('section')?.removeEventListener('mousemove', onMouseMove);
+      canvas.closest('section')?.removeEventListener('mouseleave', onMouseLeave);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      aria-hidden
+    />
+  );
+}
+
 export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }: LandingPageProps) {
   const { language, setLanguage } = useT();
   const isEs = language === 'es';
@@ -268,8 +418,10 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
         {/* Background layers */}
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(253,218,54,0.06) 0%, transparent 70%)' }} />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 60% 50% at 80% 50%, rgba(6,182,212,0.04) 0%, transparent 60%)' }} />
-        {/* Grid */}
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        {/* Particle network */}
+        <ParticleNetwork />
+        {/* Grid overlay on top of particles */}
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
         {/* Biomechanics overlay — parallax shift */}
         <div
@@ -645,3 +797,6 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
     </div>
   );
 }
+
+
+export default LandingPage
