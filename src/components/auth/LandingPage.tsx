@@ -798,5 +798,4 @@ export default function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWi
   );
 }
 
-
 export default LandingPage
