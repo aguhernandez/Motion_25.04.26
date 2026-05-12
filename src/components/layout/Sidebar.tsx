@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Bike, Activity, LayoutDashboard, Users, BookOpen, FileText,
-  Layers, Globe, Sun, Moon, Wind, Waves, Dumbbell, LogOut, Code,
+  Layers, Globe, Sun, Moon, Wind, Waves, Dumbbell, LogOut,
 } from 'lucide-react';
 import type { ActiveView } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
@@ -58,7 +58,6 @@ const lm = {
 export default function Sidebar({ activeView, onViewChange, darkMode, onToggleDark, user, onSignOut }: SidebarProps) {
   const [hovered, setHovered] = useState(false);
   const { t, language, setLanguage } = useT();
-  const { isDevMode, toggleDevMode } = useAuth();
 
   const expanded = hovered;
   const th = darkMode ? dm : lm;
@@ -246,31 +245,6 @@ export default function Sidebar({ activeView, onViewChange, darkMode, onToggleDa
             </span>
           </div>
         )}
-
-        <button
-          onClick={() => toggleDevMode(!isDevMode)}
-          title={isDevMode ? (language === 'es' ? 'Cambiar a produccion' : 'Switch to production') : (language === 'es' ? 'Modo desarrollo' : 'Dev mode')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 overflow-hidden font-body"
-          style={{ color: isDevMode ? '#fdda36' : th.text }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = isDevMode ? 'rgba(253,218,54,0.1)' : th.hoverBg;
-            (e.currentTarget as HTMLButtonElement).style.color = isDevMode ? '#fdda36' : th.hoverText;
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = '';
-            (e.currentTarget as HTMLButtonElement).style.color = isDevMode ? '#fdda36' : th.text;
-          }}
-        >
-          <Code className="w-4 h-4 flex-shrink-0" />
-          <span
-            className="whitespace-nowrap text-sm font-medium transition-all duration-300 overflow-hidden"
-            style={{ opacity: expanded ? 1 : 0, width: expanded ? 'auto' : 0, maxWidth: expanded ? '160px' : '0' }}
-          >
-            {isDevMode
-              ? (language === 'es' ? 'Modo Dev activo' : 'Dev mode active')
-              : (language === 'es' ? 'Modo Dev' : 'Dev mode')}
-          </span>
-        </button>
 
         <button
           onClick={onSignOut}

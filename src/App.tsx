@@ -7,7 +7,6 @@ import { useReferenceRanges } from './hooks/useReferenceRanges';
 import { useLanguage } from './hooks/useLanguage';
 import { useAuth } from './contexts/AuthContext';
 import { LanguageContext } from './lib/LanguageContext';
-import LocalDevMode from './components/auth/LocalDevMode';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileTopBar from './components/layout/MobileTopBar';
@@ -57,7 +56,7 @@ export default function App() {
   }, [darkMode]);
 
   const { language, setLanguage, t } = useLanguage();
-  const { user, loading: authLoading, logout: signOut, login, loginWithCredentials, isDevMode, setDevProfile } = useAuth();
+  const { user, loading: authLoading, logout: signOut, login, loginWithCredentials } = useAuth();
 
   const { athletes, createAthlete, updateAthlete, deleteAthlete } = useAthletes();
   const { sessions, createSession, deleteSession, fetchSessions } = useSessions();
@@ -284,13 +283,6 @@ export default function App() {
   }
 
   if (!user) {
-    if (isDevMode) {
-      return (
-        <LanguageContext.Provider value={{ language, setLanguage, t, darkMode, onToggleDark: toggleDark }}>
-          <LocalDevMode darkMode={darkMode} onToggleDark={toggleDark} onProfileSelected={setDevProfile} />
-        </LanguageContext.Provider>
-      );
-    }
     return (
       <LanguageContext.Provider value={{ language, setLanguage, t, darkMode, onToggleDark: toggleDark }}>
         <LandingPage darkMode={darkMode} onToggleDark={toggleDark} onLogin={login} onLoginWithCredentials={loginWithCredentials} />
