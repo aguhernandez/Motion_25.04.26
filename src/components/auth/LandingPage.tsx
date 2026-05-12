@@ -322,6 +322,7 @@ function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }
   const heroRef = useRef<HTMLDivElement>(null);
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showDevModal, setShowDevModal] = useState(true);
 
   const openLogin = () => setShowLoginModal(true);
 
@@ -793,6 +794,36 @@ function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }
           onLoginWithCredentials={onLoginWithCredentials}
           onLoginWithHub={onLogin}
         />
+      )}
+
+      {showDevModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowDevModal(false)}
+          />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 max-w-md mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <span className="text-2xl">⚙️</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {isEs ? 'En Desarrollo' : 'In Development'}
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                {isEs
+                  ? 'Esta sección está en proceso de desarrollo. Estamos trabajando para mejorar tu experiencia.'
+                  : 'This section is under development. We are working to improve your experience.'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowDevModal(false)}
+              className="mt-6 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              {isEs ? 'Entendido' : 'Understood'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
