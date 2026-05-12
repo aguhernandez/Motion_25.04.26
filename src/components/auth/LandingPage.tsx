@@ -802,15 +802,44 @@ function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowDevModal(false)}
           />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 max-w-md mx-4 border border-slate-200 dark:border-slate-700">
-            <div className="text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30">
+          <div
+            className="relative rounded-2xl shadow-2xl p-8 max-w-md mx-4 border-2"
+            style={{
+              background: darkMode ? 'rgba(26, 21, 40, 0.98)' : '#ffffff',
+              borderColor: '#fdda36',
+            }}
+          >
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                onClick={() => setLanguage('en')}
+                className="px-3 py-1 text-xs font-medium rounded transition-all"
+                style={{
+                  background: !isEs ? '#fdda36' : 'rgba(81, 65, 99, 0.15)',
+                  color: !isEs ? '#514163' : (darkMode ? '#94a3b8' : '#514163'),
+                }}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('es')}
+                className="px-3 py-1 text-xs font-medium rounded transition-all"
+                style={{
+                  background: isEs ? '#fdda36' : 'rgba(81, 65, 99, 0.15)',
+                  color: isEs ? '#514163' : (darkMode ? '#94a3b8' : '#514163'),
+                }}
+              >
+                ES
+              </button>
+            </div>
+
+            <div className="text-center space-y-4 mt-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full" style={{ background: 'rgba(253, 218, 54, 0.15)' }}>
                 <span className="text-2xl">⚙️</span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="text-2xl font-bold" style={{ color: '#fdda36' }}>
                 {isEs ? 'En Desarrollo' : 'In Development'}
               </h2>
-              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+              <p className="text-sm leading-relaxed" style={{ color: darkMode ? '#94a3b8' : 'rgba(81, 65, 99, 0.6)' }}>
                 {isEs
                   ? 'Esta sección está en proceso de desarrollo. Estamos trabajando para mejorar tu experiencia.'
                   : 'This section is under development. We are working to improve your experience.'}
@@ -818,7 +847,11 @@ function LandingPage({ darkMode, onToggleDark, onLogin, onLoginWithCredentials }
             </div>
             <button
               onClick={() => setShowDevModal(false)}
-              className="mt-6 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              className="mt-6 w-full py-2.5 px-4 text-white font-medium rounded-lg transition-all hover:shadow-lg"
+              style={{
+                background: '#fdda36',
+                color: '#514163',
+              }}
             >
               {isEs ? 'Entendido' : 'Understood'}
             </button>
