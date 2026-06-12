@@ -16,6 +16,7 @@ import Dashboard from './components/views/Dashboard';
 import SessionsView from './components/views/SessionsView';
 import AthletesView from './components/views/AthletesView';
 import ReferencesView from './components/views/ReferencesView';
+import SettingsView from './components/views/SettingsView';
 import CyclingAnalysis from './components/cycling/CyclingAnalysis';
 import RunningAnalysis from './components/running/RunningAnalysis';
 import SwimmingAnalysis from './components/swimming/SwimmingAnalysis';
@@ -157,6 +158,7 @@ export default function App() {
       case 'sessions': return t.views.sessions;
       case 'athletes': return t.views.athletes;
       case 'references': return t.views.references;
+      case 'settings': return t.views.settings;
       default: return { title: '', subtitle: '' };
     }
   };
@@ -267,6 +269,8 @@ export default function App() {
             onDelete={deleteRange}
           />
         );
+      case 'settings':
+        return <SettingsView />;
       default:
         return null;
     }

@@ -20,6 +20,7 @@ export const translations = {
       references: 'Referencias',
       analysis: 'Análisis',
       management: 'Gestión',
+      settings: 'Configuración',
     },
     views: {
       dashboard: { title: 'Dashboard', subtitle: 'Asciende Biomechanic Satellite' },
@@ -32,6 +33,7 @@ export const translations = {
       sessions: { title: 'Sesiones', subtitle: 'Historial completo de análisis' },
       athletes: { title: 'Atletas', subtitle: 'Perfiles y datos antropométricos' },
       references: { title: 'Rangos de Referencia', subtitle: 'Valores biomecánicos estándar y personalizados' },
+      settings: { title: 'Configuración', subtitle: 'Preferencias y ajustes del sistema' },
     },
     dashboard: {
       welcome: 'Bienvenido a Biomechanic',
@@ -342,6 +344,7 @@ export const translations = {
       references: 'References',
       analysis: 'Analysis',
       management: 'Management',
+      settings: 'Settings',
     },
     views: {
       dashboard: { title: 'Dashboard', subtitle: 'Asciende Biomechanic Satellite' },
@@ -354,6 +357,7 @@ export const translations = {
       sessions: { title: 'Sessions', subtitle: 'Complete analysis history' },
       athletes: { title: 'Athletes', subtitle: 'Profiles and anthropometric data' },
       references: { title: 'Reference Ranges', subtitle: 'Standard and custom biomechanical values' },
+      settings: { title: 'Settings', subtitle: 'Preferences and system configuration' },
     },
     dashboard: {
       welcome: 'Welcome to Biomechanic',

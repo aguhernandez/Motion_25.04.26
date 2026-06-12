@@ -118,4 +118,5 @@ export type ActiveView =
   | 'sessions'
   | 'athletes'
   | 'references'
-  | 'reports';
+  | 'reports'
+  | 'settings';

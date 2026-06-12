@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Bike, Activity, LayoutDashboard, Users, BookOpen, FileText,
-  Layers, Wind, Waves, Dumbbell, MoreHorizontal, X,
+  Layers, Wind, Waves, Dumbbell, MoreHorizontal, X, Settings,
 } from 'lucide-react';
 import type { ActiveView } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
@@ -11,7 +11,7 @@ interface MobileBottomNavProps {
   onViewChange: (view: ActiveView) => void;
 }
 
-const NAV_ITEMS: { id: ActiveView; icon: React.ElementType; navKey: 'dashboard' | 'cycling' | 'running' | 'swimming' | 'weightlifting' | 'aerodynamics' | 'custom' | 'sessions' | 'athletes' | 'references' }[] = [
+const NAV_ITEMS: { id: ActiveView; icon: React.ElementType; navKey: 'dashboard' | 'cycling' | 'running' | 'swimming' | 'weightlifting' | 'aerodynamics' | 'custom' | 'sessions' | 'athletes' | 'references' | 'settings' }[] = [
   { id: 'dashboard', icon: LayoutDashboard, navKey: 'dashboard' },
   { id: 'cycling-analysis', icon: Bike, navKey: 'cycling' },
   { id: 'running-analysis', icon: Activity, navKey: 'running' },
@@ -22,6 +22,7 @@ const NAV_ITEMS: { id: ActiveView; icon: React.ElementType; navKey: 'dashboard' 
   { id: 'sessions', icon: FileText, navKey: 'sessions' },
   { id: 'athletes', icon: Users, navKey: 'athletes' },
   { id: 'references', icon: BookOpen, navKey: 'references' },
+  { id: 'settings', icon: Settings, navKey: 'settings' },
 ];
 
 const PRIMARY_COUNT = 4;

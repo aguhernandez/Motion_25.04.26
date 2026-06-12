@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +11,23 @@ const corsHeaders = {
 const HUB_API_BASE =
   "https://ngkcbygyoobqhlmlnuvl.supabase.co/functions/v1/planner-hub-api";
 
-const PLANNER_TOKEN = Deno.env.get("X-PLANNER-TOKEN") ?? "";
+async function getPlannerToken(): Promise<string> {
+  const envToken = Deno.env.get("X-PLANNER-TOKEN") ?? "";
+  if (envToken) return envToken;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!supabaseUrl || !serviceRoleKey) return "";
+
+  const sb = createClient(supabaseUrl, serviceRoleKey);
+  const { data } = await sb
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "x_planner_token")
+    .maybeSingle();
+
+  return data?.value ?? "";
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -40,13 +57,24 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const plannerToken = await getPlannerToken();
+    if (!plannerToken) {
+      return new Response(
+        JSON.stringify({ error: "Planner token not configured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const hubUrl = `${HUB_API_BASE}/${endpoint}`;
 
     const hubResponse = await fetch(hubUrl, {
       method: req.method,
       headers: {
         Authorization: authHeader,
-        "X-Planner-Token": PLANNER_TOKEN,
+        "X-Planner-Token": plannerToken,
         "Content-Type": "application/json",
       },
       body: req.method !== "GET" ? await req.text() : undefined,

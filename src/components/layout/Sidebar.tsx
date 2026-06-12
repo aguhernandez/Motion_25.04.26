@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Bike, Activity, LayoutDashboard, Users, BookOpen, FileText,
-  Layers, Globe, Sun, Moon, Wind, Waves, Dumbbell, LogOut,
+  Layers, Globe, Sun, Moon, Wind, Waves, Dumbbell, LogOut, Settings,
 } from 'lucide-react';
 import type { ActiveView } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
@@ -10,7 +10,7 @@ import type { HubUser } from '../../contexts/AuthContext';
 
 const NAV_ITEMS: {
   id: ActiveView;
-  key: 'dashboard' | 'cycling' | 'running' | 'swimming' | 'weightlifting' | 'custom' | 'aerodynamics' | 'sessions' | 'athletes' | 'references';
+  key: 'dashboard' | 'cycling' | 'running' | 'swimming' | 'weightlifting' | 'custom' | 'aerodynamics' | 'sessions' | 'athletes' | 'references' | 'settings';
   icon: React.ElementType;
   group?: 'analysis' | 'management';
 }[] = [
@@ -24,6 +24,7 @@ const NAV_ITEMS: {
   { id: 'sessions', key: 'sessions', icon: FileText, group: 'management' },
   { id: 'athletes', key: 'athletes', icon: Users, group: 'management' },
   { id: 'references', key: 'references', icon: BookOpen, group: 'management' },
+  { id: 'settings', key: 'settings', icon: Settings, group: 'management' },
 ];
 
 interface SidebarProps {
