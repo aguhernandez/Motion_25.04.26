@@ -10,7 +10,7 @@ const corsHeaders = {
 const HUB_API_BASE =
   "https://ngkcbygyoobqhlmlnuvl.supabase.co/functions/v1/planner-hub-api";
 
-const TOKKEN_PLANNER = Deno.env.get("X_TOKKEN_PLANNER") ?? "";
+const PLANNER_TOKEN = Deno.env.get("X_PLANNER_TOKEN") ?? "";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
       method: req.method,
       headers: {
         Authorization: authHeader,
-        "X-Tokken-Planner": TOKKEN_PLANNER,
+        "X-Planner-Token": PLANNER_TOKEN,
         "Content-Type": "application/json",
       },
       body: req.method !== "GET" ? await req.text() : undefined,
