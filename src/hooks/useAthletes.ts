@@ -1,22 +1,88 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getCoachAthletes } from '../lib/hubApi';
+import type { HubAthlete } from '../lib/hubApi';
 import type { Athlete } from '../lib/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export function useAthletes() {
+  const { profile } = useAuth();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isCoach = profile?.role === 'coach';
+
   const fetchAthletes = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('athletes')
-      .select('*')
-      .order('name');
-    if (error) setError(error.message);
-    else setAthletes(data ?? []);
-    setLoading(false);
-  }, []);
+    setError(null);
+
+    try {
+      const { data: localAthletes, error: dbError } = await supabase
+        .from('athletes')
+        .select('*')
+        .order('name');
+
+      if (dbError) {
+        setError(dbError.message);
+        setLoading(false);
+        return;
+      }
+
+      let merged = localAthletes ?? [];
+
+      if (isCoach) {
+        const hubAthletes = await getCoachAthletes();
+
+        if (hubAthletes.length > 0) {
+          const localByHubId = new Map<string, Athlete>();
+          const localByEmail = new Map<string, Athlete>();
+          for (const a of merged) {
+            if (a.lab_athlete_id) localByHubId.set(a.lab_athlete_id, a);
+            if (a.email) localByEmail.set(a.email.toLowerCase(), a);
+          }
+
+          const toCreate: HubAthlete[] = [];
+          for (const ha of hubAthletes) {
+            const existsByHubId = localByHubId.has(ha.id);
+            const existsByEmail = ha.email ? localByEmail.has(ha.email.toLowerCase()) : false;
+            if (!existsByHubId && !existsByEmail) {
+              toCreate.push(ha);
+            }
+          }
+
+          if (toCreate.length > 0) {
+            const inserts = toCreate.map((ha) => ({
+              name: ha.name || ha.email,
+              email: ha.email,
+              lab_athlete_id: ha.id,
+              notes: '',
+              avatar_url: '',
+            }));
+
+            const { data: created, error: insertError } = await supabase
+              .from('athletes')
+              .insert(inserts)
+              .select();
+
+            if (insertError) {
+              console.error('[useAthletes] Auto-create from Hub failed:', insertError.message);
+            } else if (created) {
+              merged = [...merged, ...created];
+            }
+          }
+        }
+      }
+
+      merged.sort((a, b) => a.name.localeCompare(b.name));
+      setAthletes(merged);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [isCoach]);
 
   useEffect(() => {
     fetchAthletes();
