@@ -10,7 +10,7 @@ const corsHeaders = {
 const HUB_API_BASE =
   "https://ngkcbygyoobqhlmlnuvl.supabase.co/functions/v1/planner-hub-api";
 
-const PLANNER_TOKEN = Deno.env.get("X_PLANNER_TOKEN") ?? "";
+const PLANNER_TOKEN = Deno.env.get("X-PLANNER-TOKEN") ?? "";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
