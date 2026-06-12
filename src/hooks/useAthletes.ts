@@ -11,7 +11,7 @@ export function useAthletes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isCoach = profile?.role === 'coach';
+  const isCoach = profile?.role === 'coach' || profile?.role === 'admin';
 
   const fetchAthletes = useCallback(async () => {
     setLoading(true);
@@ -32,7 +32,9 @@ export function useAthletes() {
       let merged = localAthletes ?? [];
 
       if (isCoach) {
+        console.log('[useAthletes] Profile is coach/admin, fetching Hub athletes...');
         const hubAthletes = await getCoachAthletes();
+        console.log('[useAthletes] Hub returned', hubAthletes.length, 'athletes');
 
         if (hubAthletes.length > 0) {
           const localByHubId = new Map<string, Athlete>();
@@ -52,6 +54,7 @@ export function useAthletes() {
           }
 
           if (toCreate.length > 0) {
+            console.log('[useAthletes] Creating', toCreate.length, 'new athletes from Hub');
             const inserts = toCreate.map((ha) => ({
               name: ha.name || ha.email,
               email: ha.email,

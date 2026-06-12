@@ -93,10 +93,11 @@ function AdminHubTokenSection({ th }: { th: any }) {
     setSaving(true);
     setStatus('idle');
 
+    const cleanToken = token.trim();
     const { error } = await supabase
       .from('platform_settings')
       .upsert(
-        { key: 'x_planner_token', value: token, updated_at: new Date().toISOString() },
+        { key: 'x_planner_token', value: cleanToken, updated_at: new Date().toISOString() },
         { onConflict: 'key' }
       );
 

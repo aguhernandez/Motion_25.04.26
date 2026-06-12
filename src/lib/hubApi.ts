@@ -17,22 +17,38 @@ function getToken(): string | null {
 
 export async function getCoachAthletes(): Promise<HubAthlete[]> {
   const token = getToken();
-  if (!token) return [];
-
-  const url = `${getProxyUrl()}?endpoint=coach-athletes`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!res.ok) {
-    console.error('[HubAPI] coach-athletes failed:', res.status);
+  if (!token) {
+    console.warn('[HubAPI] No session token found, skipping coach-athletes fetch');
     return [];
   }
 
-  const data = await res.json();
-  return Array.isArray(data) ? data : data.athletes ?? [];
+  const url = `${getProxyUrl()}?endpoint=coach-athletes`;
+  console.log('[HubAPI] Fetching coach-athletes from:', url);
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const text = await res.text();
+    console.log('[HubAPI] coach-athletes response status:', res.status);
+    console.log('[HubAPI] coach-athletes response body:', text.slice(0, 500));
+
+    if (!res.ok) {
+      console.error('[HubAPI] coach-athletes failed:', res.status, text);
+      return [];
+    }
+
+    const data = JSON.parse(text);
+    const athletes = Array.isArray(data) ? data : data.athletes ?? data.data ?? [];
+    console.log('[HubAPI] Parsed athletes count:', athletes.length);
+    return athletes;
+  } catch (err) {
+    console.error('[HubAPI] coach-athletes exception:', err);
+    return [];
+  }
 }
