@@ -68,7 +68,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const hubUrl = `${HUB_API_BASE}/${endpoint}`;
+    // Forward all query params except "endpoint" to the Hub
+    const forwardParams = new URLSearchParams();
+    for (const [key, value] of url.searchParams.entries()) {
+      if (key !== "endpoint") {
+        forwardParams.set(key, value);
+      }
+    }
+    const queryString = forwardParams.toString();
+    const hubUrl = `${HUB_API_BASE}/${endpoint}${queryString ? `?${queryString}` : ""}`;
 
     const hubResponse = await fetch(hubUrl, {
       method: req.method,
