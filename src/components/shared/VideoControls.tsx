@@ -13,23 +13,25 @@ export interface VideoControlsHandle {
 }
 
 interface VideoControlsProps {
-  src: string;
-  onFrameChange: (frameDataUrl: string, timeMs: number) => void;
+  videoRef: React.RefObject<HTMLVideoElement>;
+  onFrameChange?: (frameDataUrl: string, timeMs: number) => void;
   onDurationChange?: (durationMs: number) => void;
+  onTimeUpdate?: (timeMs: number) => void;
 }
 
+const SPEEDS = [0.25, 0.5, 1];
+
 const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
-  ({ src, onFrameChange, onDurationChange }, ref) => {
+  ({ videoRef, onFrameChange, onDurationChange, onTimeUpdate }, ref) => {
     const { darkMode } = useT();
     const th = getTheme(darkMode);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const offscreenRef = useRef<HTMLCanvasElement>(null);
-    const rafRef = useRef<number>(0);
+    const offscreenRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [muted, setMuted] = useState(true);
-    const [fps, setFps] = useState(30);
+    const [speed, setSpeed] = useState(1);
+    const [fps] = useState(30);
     const frameStep = 1 / fps;
 
     useImperativeHandle(ref, () => ({
@@ -48,13 +50,14 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
       if (!ctx) return '';
       ctx.drawImage(video, 0, 0);
       return canvas.toDataURL('image/jpeg', 0.92);
-    }, []);
+    }, [videoRef]);
 
+    // Notify a frame capture (used for tracking / snapshot export)
     const notifyFrame = useCallback(() => {
       const dataUrl = captureFrame();
       const ms = Math.round((videoRef.current?.currentTime ?? 0) * 1000);
-      if (dataUrl) onFrameChange(dataUrl, ms);
-    }, [captureFrame, onFrameChange]);
+      if (dataUrl) onFrameChange?.(dataUrl, ms);
+    }, [captureFrame, onFrameChange, videoRef]);
 
     useEffect(() => {
       const video = videoRef.current;
@@ -62,55 +65,49 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
 
       const onLoaded = () => {
         const dur = video.duration;
+        if (isNaN(dur)) return;
         setDuration(dur);
         onDurationChange?.(Math.round(dur * 1000));
         video.pause();
+        video.playbackRate = speed;
         setPlaying(false);
         setTimeout(() => notifyFrame(), 150);
       };
 
-      const onTimeUpdate = () => {
+      const onTimeUpdateEvt = () => {
         setCurrentTime(video.currentTime);
+        onTimeUpdate?.(Math.round(video.currentTime * 1000));
       };
 
       const onEnded = () => {
         setPlaying(false);
-        cancelAnimationFrame(rafRef.current);
       };
 
-      const rafLoop = () => {
-        notifyFrame();
-        if (!video.paused && !video.ended) {
-          rafRef.current = requestAnimationFrame(rafLoop);
-        }
-      };
-
-      const onPlay = () => {
-        setPlaying(true);
-        rafRef.current = requestAnimationFrame(rafLoop);
-      };
-
+      const onPlay = () => setPlaying(true);
       const onPause = () => {
         setPlaying(false);
-        cancelAnimationFrame(rafRef.current);
         notifyFrame();
       };
 
       video.addEventListener('loadeddata', onLoaded);
-      video.addEventListener('timeupdate', onTimeUpdate);
+      video.addEventListener('timeupdate', onTimeUpdateEvt);
       video.addEventListener('ended', onEnded);
       video.addEventListener('play', onPlay);
       video.addEventListener('pause', onPause);
 
       return () => {
-        cancelAnimationFrame(rafRef.current);
         video.removeEventListener('loadeddata', onLoaded);
-        video.removeEventListener('timeupdate', onTimeUpdate);
+        video.removeEventListener('timeupdate', onTimeUpdateEvt);
         video.removeEventListener('ended', onEnded);
         video.removeEventListener('play', onPlay);
         video.removeEventListener('pause', onPause);
       };
-    }, [notifyFrame, onDurationChange, src]);
+    }, [notifyFrame, onDurationChange, onTimeUpdate, videoRef, speed]);
+
+    // Apply playback speed
+    useEffect(() => {
+      if (videoRef.current) videoRef.current.playbackRate = speed;
+    }, [speed, videoRef]);
 
     const seekTo = useCallback((time: number) => {
       const video = videoRef.current;
@@ -119,13 +116,13 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
       video.currentTime = clamped;
       setCurrentTime(clamped);
       setTimeout(() => notifyFrame(), 80);
-    }, [duration, notifyFrame]);
+    }, [duration, notifyFrame, videoRef]);
 
     const togglePlay = () => {
       const video = videoRef.current;
       if (!video) return;
       if (playing) { video.pause(); }
-      else { video.play(); }
+      else { video.play().catch(() => {}); }
     };
 
     const stepBack = useCallback(() => seekTo(currentTime - frameStep), [seekTo, currentTime, frameStep]);
@@ -159,14 +156,6 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
 
     return (
       <div className="space-y-2">
-        <video
-          ref={videoRef}
-          src={src}
-          className="hidden"
-          muted={muted}
-          playsInline
-          preload="auto"
-        />
         <canvas ref={offscreenRef} className="hidden" />
 
         <div
@@ -205,14 +194,14 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
           </div>
 
           <div className="flex items-center gap-1">
-            <label className="text-xs" style={{ color: th.sub }}>FPS</label>
+            <label className="text-xs" style={{ color: th.sub }}>Vel</label>
             <select
-              value={fps}
-              onChange={(e) => setFps(Number(e.target.value))}
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
               className="text-xs px-1.5 py-1 rounded focus:outline-none"
               style={{ background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText, width: '4rem' }}
             >
-              {[24, 25, 30, 50, 60, 120].map((f) => <option key={f} value={f}>{f}</option>)}
+              {SPEEDS.map((s) => <option key={s} value={s}>{s}x</option>)}
             </select>
           </div>
 

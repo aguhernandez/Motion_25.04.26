@@ -98,6 +98,7 @@ export default function AnalysisWorkspace({
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const videoCanvasRef = useRef<VideoCanvasHandle>(null);
   const videoControlsRef = useRef<VideoControlsHandle>(null);
+  const sharedVideoRef = useRef<HTMLVideoElement>(null);
 
   const pushUndo = useCallback((prevPoints: KeyPoint[]) => {
     undoStack.current = [...undoStack.current.slice(-MAX_UNDO + 1), prevPoints];
@@ -219,14 +220,10 @@ export default function AnalysisWorkspace({
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
-  const handleFrameChange = useCallback((frameDataUrl: string, timeMs: number) => {
-    setImageData(frameDataUrl);
+  const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
     setClockMs(timeMs);
     recomputeAngles(points);
-    if (trackingState === 'tracking') {
-      videoCanvasRef.current?.trackNextFrame(frameDataUrl);
-    }
-  }, [points, recomputeAngles, trackingState]);
+  }, [points, recomputeAngles]);
 
   const startTracking = useCallback(() => {
     const ids = trackingPointIds.length > 0 ? trackingPointIds : points.map((p) => p.id);
@@ -517,6 +514,7 @@ export default function AnalysisWorkspace({
               <VideoCanvas
                 ref={videoCanvasRef}
                 videoUrl={videoSrc || null}
+                videoRef={sharedVideoRef}
                 imageData={imageData}
                 keyPoints={points}
                 angles={angles}
@@ -535,7 +533,7 @@ export default function AnalysisWorkspace({
                 <div className="rounded-xl p-3" style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.2)' }}>
                   <VideoControls
                     ref={videoControlsRef}
-                    src={videoSrc}
+                    videoRef={sharedVideoRef}
                     onFrameChange={handleFrameChange}
                     onDurationChange={(ms) => setClockMs(ms)}
                   />

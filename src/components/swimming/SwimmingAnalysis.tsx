@@ -1,9 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import {
-  Plus, ChevronRight, Camera, Waves, Upload, Save, RotateCcw,
-  Eye, EyeOff, Layers, Sparkles, AlertTriangle, CheckCircle2, Info, PlayCircle,
-  Grid3X3, Clock, Download,
-} from 'lucide-react';
+import { Plus, ChevronRight, Camera, Waves, Upload, Save, RotateCcw, Eye, EyeOff, Layers, Sparkles, AlertTriangle, CheckCircle2, Info, PlayCircle, Grid3x3 as Grid3X3, Clock, Download } from 'lucide-react';
 import type { Athlete, BiomechanicsSession, BiomechanicsSnapshot, KeyPoint } from '../../lib/types';
 import type { ReferenceRange } from '../../lib/types';
 import VideoCanvas, { type VideoCanvasHandle } from '../shared/VideoCanvas';
@@ -289,6 +285,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const videoCanvasRef = useRef<VideoCanvasHandle>(null);
   const videoControlsRef = useRef<VideoControlsHandle>(null);
+  const sharedVideoRef = useRef<HTMLVideoElement>(null);
 
   const strokeRefs = references.filter((r) =>
     ['freestyle', 'backstroke', 'breaststroke', 'butterfly'].includes(r.discipline)
@@ -325,8 +322,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
     setVideoExpiresAt(expiry);
   };
 
-  const handleFrameChange = useCallback((frameDataUrl: string, timeMs: number) => {
-    setImageData(frameDataUrl);
+  const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
     setClockMs(timeMs);
   }, []);
 
@@ -461,6 +457,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
               <VideoCanvas
                 ref={videoCanvasRef}
                 videoUrl={videoSrc}
+                videoRef={sharedVideoRef}
                 imageData={imageData}
                 keyPoints={points}
                 angles={strokeAngles}
@@ -475,7 +472,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
               {mediaMode === 'video' && videoSrc && (
                 <VideoControls
                   ref={videoControlsRef}
-                  src={videoSrc}
+                  videoRef={sharedVideoRef}
                   onFrameChange={handleFrameChange}
                 />
               )}

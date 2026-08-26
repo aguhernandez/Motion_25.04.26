@@ -1,9 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import {
-  Plus, ChevronRight, Camera, Upload, Save, RotateCcw,
-  Eye, EyeOff, Layers, Sparkles, AlertTriangle, CheckCircle2,
-  Info, PlayCircle, Grid3X3, Clock, Download, Dumbbell,
-} from 'lucide-react';
+import { Plus, ChevronRight, Camera, Upload, Save, RotateCcw, Eye, EyeOff, Layers, Sparkles, AlertTriangle, CheckCircle2, Info, PlayCircle, Grid3x3 as Grid3X3, Clock, Download, Dumbbell } from 'lucide-react';
 import type { Athlete, BiomechanicsSession, BiomechanicsSnapshot, KeyPoint } from '../../lib/types';
 import type { ReferenceRange } from '../../lib/types';
 import VideoCanvas, { type VideoCanvasHandle } from '../shared/VideoCanvas';
@@ -355,6 +351,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const videoCanvasRef = useRef<VideoCanvasHandle>(null);
   const videoControlsRef = useRef<VideoControlsHandle>(null);
+  const sharedVideoRef = useRef<HTMLVideoElement>(null);
 
   const liftRefs = references.filter((r) =>
     ['snatch', 'clean_jerk', 'back_squat', 'front_squat', 'deadlift', 'overhead_press', 'bench_press', 'power_clean'].includes(r.discipline)
@@ -391,8 +388,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
     setVideoExpiresAt(expiry);
   };
 
-  const handleFrameChange = useCallback((frameDataUrl: string, timeMs: number) => {
-    setImageData(frameDataUrl);
+  const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
     setClockMs(timeMs);
   }, []);
 
@@ -534,6 +530,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
               <VideoCanvas
                 ref={videoCanvasRef}
                 videoUrl={videoSrc}
+                videoRef={sharedVideoRef}
                 imageData={imageData}
                 keyPoints={points}
                 angles={liftAngles}
@@ -548,7 +545,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
               {mediaMode === 'video' && videoSrc && (
                 <VideoControls
                   ref={videoControlsRef}
-                  src={videoSrc}
+                  videoRef={sharedVideoRef}
                   onFrameChange={handleFrameChange}
                 />
               )}
