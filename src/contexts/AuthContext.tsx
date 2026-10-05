@@ -124,13 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return hubLoginWithCredentials(email, password);
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (isDevMode) {
       setDevProfileState(null);
       setDevUser(null);
       return;
     }
-    hubLogout();
+    await hubLogout();
+    setProfile(null);
   };
 
   const effectiveUser = isDevMode ? devUser : hubUser;

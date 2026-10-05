@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 export type MembershipSlug = 'inicia' | 'intermediate' | 'pro';
 
@@ -178,9 +179,17 @@ export function useSatelliteAuth() {
   };
 
   const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore signOut errors — proceed with local cleanup
+    }
     localStorage.removeItem(SESSION_TOKEN_KEY);
     setUser(null);
-    window.location.href = HUB_URL;
+    if (window.location.pathname !== '/' || window.location.search || window.location.hash) {
+      window.history.replaceState({}, '', '/');
+      window.location.reload();
+    }
   };
 
   const hasToken = user !== null;
