@@ -1,14 +1,19 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Camera, Save, RotateCcw, Eye, EyeOff, Layers,
   ChevronDown, ChevronUp, Sparkles, Grid3x3, Clock, Download,
   Video, Image as ImageIcon, Crosshair, StopCircle,
   AlertTriangle, Undo2, Redo2, Loader2,
 } from 'lucide-react';
-import VideoCanvas, { type VideoCanvasHandle, type TrackingState } from './VideoCanvas';
+import VideoCanvas, { type VideoCanvasHandle } from './VideoCanvas';
 import VideoControls, { type VideoControlsHandle } from './VideoControls';
 import LiveCameraTracker from './LiveCameraTracker';
 import AnglePanel from './AnglePanel';
+import BodyAngleSelector from './BodyAngleSelector';
+import VideoTrackingPanel from './VideoTrackingPanel';
+import { useVideoTracking } from '../../hooks/useVideoTracking';
+import { adjacentFrameTime, frameIndexAtTime } from '../../lib/videoTracking';
+import type { TrackingLimit } from '../../lib/videoTracking';
 import type { KeyPoint, AngleData, BiomechanicsSession, BiomechanicsSnapshot, Athlete } from '../../lib/types';
 import type { CyclingAngleConfig } from '../../lib/angleCalculations';
 import { computeAnglesFromPoints } from '../../lib/angleCalculations';
@@ -58,13 +63,14 @@ export default function AnalysisWorkspace({
   referenceVideoTitle,
   athlete,
 }: AnalysisWorkspaceProps) {
-  const { t, darkMode } = useT();
+  const { t, darkMode, language } = useT();
   const th = getTheme(darkMode);
 
   const [mediaMode, setMediaMode] = useState<MediaMode>('image');
   const [imageData, setImageData] = useState('');
   const [videoSrc, setVideoSrc] = useState('');
-  const [videoExpiresAt, setVideoExpiresAt] = useState<string | null>(null);
+  const [selectedAngleNames, setSelectedAngleNames] = useState<string[]>([]);
+  const activeConfigs = useMemo(() => angleConfigs.filter((config) => selectedAngleNames.includes(config.name)), [angleConfigs, selectedAngleNames]);
   const [points, setPoints] = useState<KeyPoint[]>(defaultPoints);
   const [angles, setAngles] = useState<AngleData[]>([]);
   const [showAngles, setShowAngles] = useState(true);
@@ -82,11 +88,23 @@ export default function AnalysisWorkspace({
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
-  const [trackingState, setTrackingState] = useState<TrackingState>('idle');
-  const [trackingPointIds, setTrackingPointIds] = useState<string[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [trackingLimit, setTrackingLimit] = useState<TrackingLimit>(120);
+  const [independentPointIds, setIndependentPointIds] = useState<string[]>([]);
+  const [lostPointIds, setLostPointIds] = useState<string[]>([]);
+  const [trajectoryPointId, setTrajectoryPointId] = useState('');
+  const [hasReviewSample, setHasReviewSample] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+
+  const activeLabels = new Set(activeConfigs.flatMap((config) => [config.labelP1, config.labelVertex, config.labelP2]));
+  const activePoints = points.filter((point) => activeLabels.has(point.label) || independentPointIds.includes(point.id));
+  const activeConnections = connections.filter(([a, b]) => activeLabels.has(a) && activeLabels.has(b));
+
+  useEffect(() => {
+    return () => { if (videoSrc) URL.revokeObjectURL(videoSrc); };
+  }, [videoSrc]);
 
   const undoStack = useRef<KeyPoint[][]>([]);
   const redoStack = useRef<KeyPoint[][]>([]);
@@ -99,6 +117,37 @@ export default function AnalysisWorkspace({
   const videoCanvasRef = useRef<VideoCanvasHandle>(null);
   const videoControlsRef = useRef<VideoControlsHandle>(null);
   const sharedVideoRef = useRef<HTMLVideoElement>(null);
+  const tracking = useVideoTracking(mediaMode === 'video' ? videoFile : null, sharedVideoRef, (sample, time) => {
+    setClockMs(time * 1000);
+    setHasReviewSample(!!sample);
+    setLostPointIds(sample?.lostIds ?? []);
+    if (!sample) setAngles([]);
+    if (sample) {
+      setPoints((previous) => previous.map((point) => sample.points.find((item) => item.id === point.id) ?? point));
+      setAngles(sample.angles);
+    }
+  });
+  const videoDimensions = tracking.index ? { width: tracking.index.width, height: tracking.index.height } : undefined;
+  const dimensionsRef = useRef(videoDimensions);
+  dimensionsRef.current = videoDimensions;
+  const changeSelection = (names: string[]) => {
+    tracking.clear();
+    setHasReviewSample(false);
+    setLostPointIds([]);
+    setSelectedAngleNames(names);
+  };
+  const markCorrection = (clearLost = true) => {
+    tracking.correctAt(sharedVideoRef.current?.currentTime ?? 0);
+    setHasReviewSample(false);
+    if (clearLost) setLostPointIds([]);
+  };
+
+  useEffect(() => {
+    if (mediaMode === 'video' && (hasReviewSample || tracking.sampleCount > 0)) return;
+    const dimensions = tracking.index ? { width: tracking.index.width, height: tracking.index.height } : undefined;
+    setAngles(computeAnglesFromPoints(points.filter((point) => !lostPointIds.includes(point.id)), activeConfigs, references, dimensions));
+  }, [points, activeConfigs, references, hasReviewSample, mediaMode, lostPointIds, tracking.sampleCount, tracking.index]);
+
 
   const pushUndo = useCallback((prevPoints: KeyPoint[]) => {
     undoStack.current = [...undoStack.current.slice(-MAX_UNDO + 1), prevPoints];
@@ -107,46 +156,49 @@ export default function AnalysisWorkspace({
     setCanRedo(false);
   }, []);
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = () => {
     if (undoStack.current.length === 0) return;
     const prev = undoStack.current[undoStack.current.length - 1];
     undoStack.current = undoStack.current.slice(0, -1);
     redoStack.current = [points, ...redoStack.current.slice(0, MAX_UNDO - 1)];
+    markCorrection();
     setPoints(prev);
-    const computed = computeAnglesFromPoints(prev, angleConfigs, references);
+    const computed = computeAnglesFromPoints(prev, activeConfigs, references, dimensionsRef.current);
     setAngles(computed);
     setCanUndo(undoStack.current.length > 0);
     setCanRedo(true);
-  }, [points, angleConfigs, references]);
+  };
 
-  const handleRedo = useCallback(() => {
+  const handleRedo = () => {
     if (redoStack.current.length === 0) return;
     const next = redoStack.current[0];
     redoStack.current = redoStack.current.slice(1);
     undoStack.current = [...undoStack.current.slice(-MAX_UNDO + 1), points];
+    markCorrection();
     setPoints(next);
-    const computed = computeAnglesFromPoints(next, angleConfigs, references);
+    const computed = computeAnglesFromPoints(next, activeConfigs, references, dimensionsRef.current);
     setAngles(computed);
     setCanUndo(true);
     setCanRedo(redoStack.current.length > 0);
-  }, [points, angleConfigs, references]);
+  };
 
   const recomputeAngles = useCallback(
     (pts: KeyPoint[]) => {
-      const computed = computeAnglesFromPoints(pts, angleConfigs, references);
+      const computed = computeAnglesFromPoints(pts, activeConfigs, references, dimensionsRef.current);
       setAngles(computed);
     },
-    [angleConfigs, references]
+    [activeConfigs, references]
   );
 
-  const handlePointsChange = useCallback(
-    (pts: KeyPoint[]) => {
+  const handlePointsChange = (pts: KeyPoint[]) => {
+      markCorrection(false);
+      const movedIds = pts.filter((point) => points.some((previous) => previous.id === point.id && (previous.x !== point.x || previous.y !== point.y))).map((point) => point.id);
+      setLostPointIds((previous) => previous.filter((id) => !movedIds.includes(id)));
       pushUndo(points);
-      setPoints(pts);
-      recomputeAngles(pts);
-    },
-    [points, pushUndo, recomputeAngles]
-  );
+      const merged = points.map((point) => pts.find((updated) => updated.id === point.id) ?? point);
+      setPoints(merged);
+      recomputeAngles(merged);
+    };
 
   const validateImageFile = (file: File): string | null => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -203,7 +255,10 @@ export default function AnalysisWorkspace({
     const err = validateVideoFile(file);
     if (err) { setUploadError(err); if (videoInputRef.current) videoInputRef.current.value = ''; return; }
     setVideoLoading(true);
-    if (videoSrc) URL.revokeObjectURL(videoSrc);
+    tracking.clear();
+    setHasReviewSample(false);
+    setLostPointIds([]);
+    setVideoFile(file);
     const url = URL.createObjectURL(file);
     setVideoSrc(url);
     setMediaMode('video');
@@ -213,53 +268,21 @@ export default function AnalysisWorkspace({
     setCanRedo(false);
     setPoints(defaultPoints);
     recomputeAngles(defaultPoints);
-    setTrackingState('idle');
-    const expires = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
-    setVideoExpiresAt(expires);
+
+
     setTimeout(() => setVideoLoading(false), 800);
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
   const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
     setClockMs(timeMs);
-    recomputeAngles(points);
-  }, [points, recomputeAngles]);
-
-  const startTracking = useCallback(() => {
-    const ids = trackingPointIds.length > 0 ? trackingPointIds : points.map((p) => p.id);
-    videoCanvasRef.current?.startTracking(ids);
-    setTrackingState('tracking');
-  }, [trackingPointIds, points]);
-
-  const stopTracking = useCallback(() => {
-    videoCanvasRef.current?.stopTracking();
-    videoCanvasRef.current?.resetTracker();
-    setTrackingState('idle');
   }, []);
 
-  const handleTrackingStateChange = useCallback((state: TrackingState) => {
-    setTrackingState(state);
-  }, []);
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (cameraVideoRef.current) {
-        cameraVideoRef.current.srcObject = stream;
-        cameraVideoRef.current.play();
-        setCameraActive(true);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido';
-      if (msg.includes('Permission') || msg.includes('NotAllowed') || msg.includes('denied')) {
-        setCameraError(t.workspace.errorCameraPermission);
-      } else if (msg.includes('NotFound') || msg.includes('DevicesNotFound')) {
-        setCameraError(t.workspace.errorCameraNotFound);
-      } else {
-        setCameraError(t.workspace.errorCamera.replace('{msg}', msg));
-      }
-    }
+  const startTracking = () => {
+    if (lostPointIds.length) return;
+    setLostPointIds([]);
+    setHasReviewSample(false);
+    tracking.start(activePoints, activeConfigs, references, trackingLimit);
   };
 
   const captureFromCamera = () => {
@@ -282,6 +305,7 @@ export default function AnalysisWorkspace({
   };
 
   const handleReset = () => {
+    markCorrection();
     pushUndo(points);
     setPoints(defaultPoints);
     recomputeAngles(defaultPoints);
@@ -325,25 +349,22 @@ export default function AnalysisWorkspace({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (mediaMode !== 'video' || !videoSrc) return;
-      const step = 1 / 30;
+      if (mediaMode !== 'video' || !videoSrc || tracking.busy) return;
+      if (e.target instanceof HTMLElement && (e.target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         const ctrl = videoControlsRef.current;
         if (!ctrl) return;
         const v = ctrl.getVideoElement();
         if (!v || isNaN(v.duration)) return;
-        v.currentTime = e.key === 'ArrowRight'
-          ? Math.min(v.duration, v.currentTime + step)
-          : Math.max(0, v.currentTime - step);
-        setTimeout(() => {
-          const f = ctrl.getCurrentFrameDataUrl();
-          if (f) handleFrameChange(f, ctrl.getCurrentTimeMs());
-        }, 80);
+        if (!v.paused || !tracking.index) return;
+        e.preventDefault();
+        v.currentTime = adjacentFrameTime(tracking.index.timestamps, v.currentTime, e.key === 'ArrowRight' ? 1 : -1) + 1e-7;
+
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mediaMode, videoSrc, handleFrameChange]);
+  }, [mediaMode, videoSrc, handleFrameChange, tracking.busy, tracking.index]);
 
   const handleDownloadFrame = () => {
     const dataUrl = videoCanvasRef.current?.exportFrame() ?? imageData;
@@ -365,7 +386,7 @@ export default function AnalysisWorkspace({
       await onSaveSnapshot({
         session_id: session.id,
         image_data: frameData,
-        key_points: points,
+        key_points: activePoints,
         angles,
         bike_fitting_data: {},
         gait_data: {},
@@ -381,6 +402,19 @@ export default function AnalysisWorkspace({
       setSaving(false);
     }
   };
+
+  const trajectory = useMemo(() => {
+    const records = tracking.samples.current;
+    const lastIndex = Math.min(tracking.sampleCount - 1, frameIndexAtTime(tracking.sampleTimes.current, clockMs / 1000));
+    const path: ({ x: number; y: number } | null)[] = [];
+    const start = Math.max(0, lastIndex - 600);
+    for (let i = start; i <= lastIndex; i++) {
+      const sample = records[i];
+      const point = sample.points.find((item) => item.id === trajectoryPointId);
+      path.push(point && !sample.lostIds.includes(point.id) ? point : null);
+    }
+    return path;
+  }, [trajectoryPointId, clockMs, tracking.sampleCount, tracking.samples, tracking.sampleTimes]);
 
   const missingMeasurements = athlete && (!athlete.height_cm || !athlete.weight_kg);
 
@@ -423,16 +457,12 @@ export default function AnalysisWorkspace({
                   {t.workspace.modeLiveBadge}
                 </span>
               )}
-              {videoExpiresAt && mediaMode === 'video' && (
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
-                  Exp. {new Date(videoExpiresAt).toLocaleDateString('es-AR')}
-                </span>
-              )}
+
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleUndo}
-                disabled={!canUndo}
+                disabled={!canUndo || tracking.busy}
                 title={t.workspace.undo}
                 style={canUndo ? { ...iconInactive, color: th.title } : { ...iconInactive, opacity: 0.3, cursor: 'not-allowed' }}
               >
@@ -440,7 +470,7 @@ export default function AnalysisWorkspace({
               </button>
               <button
                 onClick={handleRedo}
-                disabled={!canRedo}
+                disabled={!canRedo || tracking.busy}
                 title={t.workspace.redo}
                 style={canRedo ? { ...iconInactive, color: th.title } : { ...iconInactive, opacity: 0.3, cursor: 'not-allowed' }}
               >
@@ -459,7 +489,7 @@ export default function AnalysisWorkspace({
               <button onClick={() => setShowClock((v) => !v)} title={t.workspace.clockMs} style={iconCyan(showClock)}>
                 <Clock className="w-4 h-4" />
               </button>
-              <button onClick={handleReset} title={t.workspace.resetPoints} style={iconInactive}>
+              <button disabled={tracking.busy} onClick={handleReset} title={t.workspace.resetPoints} style={iconInactive}>
                 <RotateCcw className="w-4 h-4" />
               </button>
               <button onClick={handleDownloadFrame} title={t.workspace.downloadFrame} style={iconInactive}>
@@ -467,14 +497,15 @@ export default function AnalysisWorkspace({
               </button>
               {mediaMode === 'video' && videoSrc && (
                 <button
-                  onClick={trackingState === 'tracking' ? stopTracking : startTracking}
-                  title={trackingState === 'tracking' ? t.workspace.trackingStop : t.workspace.trackingStart}
-                  style={trackingState === 'tracking'
+                  disabled={activePoints.length === 0 || !tracking.index || tracking.status === 'inspecting' || lostPointIds.length > 0}
+                  onClick={tracking.status === 'running' ? tracking.stop : startTracking}
+                  title={tracking.status === 'running' ? t.workspace.trackingStop : t.workspace.trackingStart}
+                  style={tracking.status === 'running'
                     ? { background: 'rgba(16,185,129,0.15)', color: '#10b981', borderRadius: '0.5rem', padding: '0.375rem', cursor: 'pointer', border: '1px solid rgba(16,185,129,0.35)' }
                     : { background: 'transparent', color: th.sub, borderRadius: '0.5rem', padding: '0.375rem', cursor: 'pointer' }
                   }
                 >
-                  {trackingState === 'tracking' ? <StopCircle className="w-4 h-4" /> : <Crosshair className="w-4 h-4" />}
+                  {tracking.status === 'running' ? <StopCircle className="w-4 h-4" /> : <Crosshair className="w-4 h-4" />}
                 </button>
               )}
             </div>
@@ -483,9 +514,10 @@ export default function AnalysisWorkspace({
           {mediaMode === 'live' ? (
             <div className="p-3">
               <LiveCameraTracker
-                keyPoints={points}
+                key={selectedAngleNames.join("|")}
+                keyPoints={activePoints}
                 angles={angles}
-                connections={connections}
+                connections={activeConnections}
                 onPointsChange={handlePointsChange}
                 onFrame={(frameDataUrl) => setImageData(frameDataUrl)}
               />
@@ -513,21 +545,22 @@ export default function AnalysisWorkspace({
               )}
               <VideoCanvas
                 ref={videoCanvasRef}
-                videoUrl={videoSrc || null}
+                videoUrl={mediaMode === 'video' ? videoSrc || null : null}
                 videoRef={sharedVideoRef}
                 imageData={imageData}
-                keyPoints={points}
+                keyPoints={activePoints}
                 angles={angles}
-                connections={connections}
+                connections={activeConnections}
                 onPointsChange={handlePointsChange}
                 showAngles={showAngles}
                 showLabels={showLabels}
                 showGrid={showGrid}
                 showClock={showClock}
                 clockMs={clockMs}
-                trackingState={trackingState}
-                trackedPointIds={trackingPointIds}
-                onTrackingStateChange={handleTrackingStateChange}
+                readonly={tracking.busy || (mediaMode === 'video' && !(sharedVideoRef.current?.paused ?? true))}
+                lostPointIds={lostPointIds}
+                trajectory={trajectory}
+                hideMeasurements={mediaMode === 'video' && tracking.sampleCount > 0 && !hasReviewSample}
               />
               {mediaMode === 'video' && videoSrc && (
                 <div className="rounded-xl p-3" style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.2)' }}>
@@ -535,7 +568,10 @@ export default function AnalysisWorkspace({
                     ref={videoControlsRef}
                     videoRef={sharedVideoRef}
                     onFrameChange={handleFrameChange}
-                    onDurationChange={(ms) => setClockMs(ms)}
+                    frameTimes={tracking.index?.timestamps}
+                    disabled={tracking.busy}
+                    mutedDefault
+                    onTimeUpdate={(ms) => setClockMs(ms)}
                   />
                 </div>
               )}
@@ -582,13 +618,27 @@ export default function AnalysisWorkspace({
               {saveError && (
                 <span className="text-xs" style={{ color: '#ef4444' }}>{saveError}</span>
               )}
-              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg disabled:opacity-50" style={savedFlash ? { background: '#10b981', color: '#fff' } : saveError ? { background: '#ef4444', color: '#fff' } : { background: '#fdda36', color: '#514163' }}>
+              <button onClick={handleSave} disabled={saving || tracking.busy} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg disabled:opacity-50" style={savedFlash ? { background: '#10b981', color: '#fff' } : saveError ? { background: '#ef4444', color: '#fff' } : { background: '#fdda36', color: '#514163' }}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {savedFlash ? t.workspace.saved : saving ? t.workspace.saving : saveError ? t.workspace.saveError : t.workspace.saveSnapshot}
               </button>
             </div>
           </div>
+          <fieldset disabled={tracking.busy}>
+          <BodyAngleSelector angleConfigs={angleConfigs} defaultPoints={defaultPoints} selectedAngleNames={selectedAngleNames} onChange={changeSelection} />
+          <details className="px-4 py-3 text-xs" style={{ color: th.rowText }}>
+            <summary className="cursor-pointer">{language === 'es' ? 'Puntos independientes (sin crear un ángulo)' : 'Independent points (without an angle)'}</summary>
+            <div className="grid grid-cols-2 gap-2 mt-3">{defaultPoints.map((point) => <label key={point.id} className="flex gap-2 items-center">
+              <input type="checkbox" checked={independentPointIds.includes(point.id)} onChange={(event) => {
+                tracking.clear(); setHasReviewSample(false); setLostPointIds([]);
+                setIndependentPointIds(event.target.checked ? [...independentPointIds, point.id] : independentPointIds.filter((id) => id !== point.id));
+              }} />{point.label}
+            </label>)}</div>
+          </details>
+          </fieldset>
         </div>
+
+        {mediaMode === 'video' && videoFile && <VideoTrackingPanel tracking={tracking} videoRef={sharedVideoRef} points={activePoints} configs={activeConfigs} references={references} limit={trackingLimit} onLimitChange={(limit) => { tracking.clear(); setHasReviewSample(false); setLostPointIds([]); setTrackingLimit(limit); }} onStart={startTracking} onTrajectoryChange={setTrajectoryPointId} lostPointIds={lostPointIds} fileName={videoFile.name} />}
 
         {mediaMode === 'video' && videoSrc && (
           <div className="p-3 rounded-xl flex items-start gap-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -626,7 +676,8 @@ export default function AnalysisWorkspace({
                         redoStack.current = [];
                         setCanUndo(false);
                         setCanRedo(false);
-                        setPoints(snap.key_points);
+                        changeSelection(snap.angles.map((angle) => angle.name));
+                        setPoints(defaultPoints.map((point) => snap.key_points.find((saved) => saved.id === point.id) ?? point));
                         recomputeAngles(snap.key_points);
                         setPhaseLabel(snap.phase_label ?? '');
                         setNotes(snap.notes ?? '');
@@ -694,7 +745,7 @@ export default function AnalysisWorkspace({
             <span className="text-sm font-semibold" style={{ color: th.title }}>{t.workspace.keyPoints}</span>
           </div>
           <div className="p-3 grid grid-cols-2 gap-1.5">
-            {points.map((p) => (
+            {activePoints.map((p) => (
               <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs" style={{ background: th.tagBg }}>
                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color ?? '#514163' }} />
                 <span style={{ color: th.rowText }}>{p.label}</span>

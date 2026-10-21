@@ -12,27 +12,6 @@ const MAX_ITER = 20;
 const EPSILON = 0.01;
 const MIN_EIGENVALUE = 1e-4;
 
-function getPixelGray(data: Uint8ClampedArray, w: number, h: number, x: number, y: number): number {
-  const xi = Math.max(0, Math.min(w - 1, Math.round(x)));
-  const yi = Math.max(0, Math.min(h - 1, Math.round(y)));
-  const idx = (yi * w + xi) * 4;
-  return 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-}
-
-function bilinear(data: Uint8ClampedArray, w: number, h: number, x: number, y: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const x1 = x0 + 1;
-  const y1 = y0 + 1;
-  const dx = x - x0;
-  const dy = y - y0;
-  const p00 = getPixelGray(data, w, h, x0, y0);
-  const p10 = getPixelGray(data, w, h, x1, y0);
-  const p01 = getPixelGray(data, w, h, x0, y1);
-  const p11 = getPixelGray(data, w, h, x1, y1);
-  return p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
-}
-
 function buildPyramid(
   data: Uint8ClampedArray,
   w: number,
@@ -118,6 +97,7 @@ function pyrLKSingle(
     const minEig = (trace - Math.sqrt(Math.max(0, trace * trace - 4 * det))) / 2;
 
     if (Math.abs(det) < 1e-6 || minEig < MIN_EIGENVALUE) {
+      if (l > 0) { vx *= 2; vy *= 2; continue; }
       return { x: px, y: py, found: false, confidence: 0 };
     }
 
@@ -197,7 +177,8 @@ export class OpticalFlowTracker {
 
   track(
     nextImageData: ImageData,
-    points: { id: string; x: number; y: number }[]
+    points: { id: string; x: number; y: number }[],
+    validate = false
   ): TrackedPoint[] {
     if (!this.prevPyramid) {
       this.setFrame(nextImageData);
@@ -217,12 +198,17 @@ export class OpticalFlowTracker {
 
       const result = pyrLKSingle(this.prevPyramid!, nextPyramid, px, py, this.prevPyramid!.length);
 
+      // Reject drift and occlusions by tracking the result back to the source frame.
+      const backward = validate && result.found
+        ? pyrLKSingle(nextPyramid, this.prevPyramid!, result.x * nextImageData.width, result.y * nextImageData.height, nextPyramid.length)
+        : null;
+      const consistent = !validate || (backward?.found && Math.hypot(backward.x * this.frameW - px, backward.y * this.frameH - py) <= 2);
       return {
         id: p.id,
         x: result.found ? result.x : p.x,
         y: result.found ? result.y : p.y,
-        lost: !result.found,
-        confidence: result.confidence,
+        lost: !result.found || !consistent,
+        confidence: consistent ? result.confidence : 0,
       };
     });
 

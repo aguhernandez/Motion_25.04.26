@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { adjacentFrameTime } from '../../lib/videoTracking';
 
 export interface VideoControlsHandle {
   getCurrentFrameDataUrl: () => string;
@@ -17,22 +18,24 @@ interface VideoControlsProps {
   onFrameChange?: (frameDataUrl: string, timeMs: number) => void;
   onDurationChange?: (durationMs: number) => void;
   onTimeUpdate?: (timeMs: number) => void;
+  frameTimes?: number[];
+  disabled?: boolean;
+  mutedDefault?: boolean;
 }
 
 const SPEEDS = [0.25, 0.5, 1];
 
 const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
-  ({ videoRef, onFrameChange, onDurationChange, onTimeUpdate }, ref) => {
+  ({ videoRef, onFrameChange, onDurationChange, onTimeUpdate, frameTimes, disabled = false, mutedDefault = true }, ref) => {
     const { darkMode } = useT();
     const th = getTheme(darkMode);
     const offscreenRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [muted, setMuted] = useState(true);
+    const [muted, setMuted] = useState(mutedDefault);
     const [speed, setSpeed] = useState(1);
-    const [fps] = useState(30);
-    const frameStep = 1 / fps;
+
 
     useImperativeHandle(ref, () => ({
       getCurrentFrameDataUrl: () => captureFrame(),
@@ -71,7 +74,7 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
         video.pause();
         video.playbackRate = speed;
         setPlaying(false);
-        setTimeout(() => notifyFrame(), 150);
+        notifyFrame();
       };
 
       const onTimeUpdateEvt = () => {
@@ -89,6 +92,9 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
         notifyFrame();
       };
 
+      if (video.readyState >= 2) { setDuration(video.duration); setCurrentTime(video.currentTime); setPlaying(!video.paused); }
+      const onSeeked = () => { setCurrentTime(video.currentTime); notifyFrame(); };
+      video.addEventListener('seeked', onSeeked);
       video.addEventListener('loadeddata', onLoaded);
       video.addEventListener('timeupdate', onTimeUpdateEvt);
       video.addEventListener('ended', onEnded);
@@ -96,6 +102,7 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
       video.addEventListener('pause', onPause);
 
       return () => {
+        video.removeEventListener('seeked', onSeeked);
         video.removeEventListener('loadeddata', onLoaded);
         video.removeEventListener('timeupdate', onTimeUpdateEvt);
         video.removeEventListener('ended', onEnded);
@@ -104,6 +111,8 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
       };
     }, [notifyFrame, onDurationChange, onTimeUpdate, videoRef, speed]);
 
+    useEffect(() => { if (videoRef.current) videoRef.current.muted = muted; }, [muted, videoRef]);
+
     // Apply playback speed
     useEffect(() => {
       if (videoRef.current) videoRef.current.playbackRate = speed;
@@ -111,22 +120,23 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
 
     const seekTo = useCallback((time: number) => {
       const video = videoRef.current;
-      if (!video) return;
+      if (!video || disabled) return;
+      video.pause();
       const clamped = Math.max(0, Math.min(duration, time));
       video.currentTime = clamped;
       setCurrentTime(clamped);
-      setTimeout(() => notifyFrame(), 80);
-    }, [duration, notifyFrame, videoRef]);
+
+    }, [duration, videoRef, disabled]);
 
     const togglePlay = () => {
       const video = videoRef.current;
-      if (!video) return;
+      if (!video || disabled) return;
       if (playing) { video.pause(); }
       else { video.play().catch(() => {}); }
     };
 
-    const stepBack = useCallback(() => seekTo(currentTime - frameStep), [seekTo, currentTime, frameStep]);
-    const stepForward = useCallback(() => seekTo(currentTime + frameStep), [seekTo, currentTime, frameStep]);
+    const stepBack = () => seekTo((frameTimes?.length ? adjacentFrameTime(frameTimes, videoRef.current?.currentTime ?? currentTime, -1) : currentTime - 1 / 30) + 1e-7);
+    const stepForward = () => seekTo((frameTimes?.length ? adjacentFrameTime(frameTimes, videoRef.current?.currentTime ?? currentTime, 1) : currentTime + 1 / 30) + 1e-7);
     const goStart = () => seekTo(0);
     const goEnd = () => seekTo(duration);
 
@@ -155,7 +165,7 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
     });
 
     return (
-      <div className="space-y-2">
+      <fieldset disabled={disabled} className="space-y-2 disabled:opacity-50">
         <canvas ref={offscreenRef} className="hidden" />
 
         <div
@@ -213,7 +223,7 @@ const VideoControls = forwardRef<VideoControlsHandle, VideoControlsProps>(
         <div className="flex items-center gap-2 text-xs px-0.5" style={{ color: th.sub }}>
           <span>← → teclas para navegar por fotogramas cuando está pausado</span>
         </div>
-      </div>
+      </fieldset>
     );
   }
 );

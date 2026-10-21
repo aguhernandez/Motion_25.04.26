@@ -65,6 +65,8 @@ export const CYCLING_ANGLE_CONFIGS: CyclingAngleConfig[] = [
 ];
 
 export const RUNNING_ANGLE_CONFIGS: CyclingAngleConfig[] = [
+  { name: 'Tronco', labelP1: 'Cadera', labelVertex: 'Hombro', labelP2: 'Cuello' },
+  { name: 'Ángulo de Cuello', labelP1: 'Hombro', labelVertex: 'Cuello', labelP2: 'Cabeza' },
   { name: 'Rodilla Apoyo', labelP1: 'Cadera', labelVertex: 'Rodilla', labelP2: 'Tobillo' },
   { name: 'Cadera Apoyo', labelP1: 'Hombro', labelVertex: 'Cadera', labelP2: 'Rodilla' },
   { name: 'Tobillo Apoyo', labelP1: 'Rodilla', labelVertex: 'Tobillo', labelP2: 'Metatarso' },
@@ -89,7 +91,8 @@ export const RUNNING_REAR_ANGLE_CONFIGS: CyclingAngleConfig[] = [
 export function computeAnglesFromPoints(
   points: KeyPoint[],
   configs: CyclingAngleConfig[],
-  references: ReferenceRange[]
+  references: ReferenceRange[],
+  dimensions?: { width: number; height: number }
 ): AngleData[] {
   const result: AngleData[] = [];
   const pointMap = new Map(points.map((p) => [p.label, p]));
@@ -101,7 +104,10 @@ export function computeAnglesFromPoints(
 
     if (!p1 || !vertex || !p2) continue;
 
-    const value = calculateAngleBetweenPoints(p1, vertex, p2);
+    const pixelPoint = (point: KeyPoint) => dimensions
+      ? { x: point.x * dimensions.width, y: point.y * dimensions.height }
+      : point;
+    const value = calculateAngleBetweenPoints(pixelPoint(p1), pixelPoint(vertex), pixelPoint(p2));
     const ref = references.find((r) => r.angle_name === cfg.name);
 
     result.push({
@@ -140,7 +146,8 @@ export const SWIMMING_BREASTSTROKE_ANGLE_CONFIGS: CyclingAngleConfig[] = [
   { name: 'Apertura de Brazos',    labelP1: 'Hombro Der.', labelVertex: 'Cuello',    labelP2: 'Hombro Izq.'  },
   { name: 'Flexión de Rodilla (Pechada)', labelP1: 'Cadera', labelVertex: 'Rodilla', labelP2: 'Tobillo'      },
   { name: 'Dorsiflexión Tobillo',  labelP1: 'Rodilla',     labelVertex: 'Tobillo',   labelP2: 'Pie'          },
-  { name: 'Ángulo de Tirón',       labelP1: 'Muñeca',      labelVertex: 'Codo',      labelP2: 'Hombro'       },
+  { name: 'Ángulo de Tirón',       labelP1: 'Muñeca Der.', labelVertex: 'Codo Der.', labelP2: 'Hombro Der.' },
+  { name: 'Ángulo de Tirón Izq.',  labelP1: 'Muñeca Izq.', labelVertex: 'Codo Izq.', labelP2: 'Hombro Izq.' },
   { name: 'Elevación de Cabeza',   labelP1: 'Hombro',      labelVertex: 'Cuello',    labelP2: 'Cabeza'       },
 ];
 

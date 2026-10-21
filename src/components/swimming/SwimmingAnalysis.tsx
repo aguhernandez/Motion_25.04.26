@@ -5,6 +5,7 @@ import type { ReferenceRange } from '../../lib/types';
 import VideoCanvas, { type VideoCanvasHandle } from '../shared/VideoCanvas';
 import VideoControls, { type VideoControlsHandle } from '../shared/VideoControls';
 import AnglePanel from '../shared/AnglePanel';
+import BodyAngleSelector from '../shared/BodyAngleSelector';
 import SwimDataPanel, { type SwimData } from './SwimDataPanel';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
@@ -273,7 +274,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
   const [points, setPoints] = useState<KeyPoint[]>(cfg.keyPoints as KeyPoint[]);
   const [showAngles, setShowAngles] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
-  const [phaseLabel, setPhaseLabel] = useState(cfg.phases[0]);
+  const [phaseLabel, setPhaseLabel] = useState<string>(cfg.phases[0]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -290,10 +291,15 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
   const strokeRefs = references.filter((r) =>
     ['freestyle', 'backstroke', 'breaststroke', 'butterfly'].includes(r.discipline)
   );
-  const strokeAngles = computeAnglesFromPoints(points, cfg.configs, strokeRefs);
+  const [selectedAngleNames, setSelectedAngleNames] = useState<string[]>([]);
+  const activeConfigs = cfg.configs.filter((config) => selectedAngleNames.includes(config.name));
+  const activeLabels = new Set(activeConfigs.flatMap((config) => [config.labelP1, config.labelVertex, config.labelP2]));
+  const activePoints = points.filter((point) => activeLabels.has(point.label));
+  const activeConnections = cfg.connections.filter(([a, b]) => activeLabels.has(a) && activeLabels.has(b));
+  const strokeAngles = computeAnglesFromPoints(activePoints, activeConfigs, strokeRefs);
   const alerts = detectSwimAlerts(strokeAngles, stroke);
 
-  const handlePointsChange = useCallback((pts: KeyPoint[]) => setPoints(pts), []);
+  const handlePointsChange = useCallback((pts: KeyPoint[]) => setPoints((previous) => previous.map((point) => pts.find((updated) => updated.id === point.id) ?? point)), []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -380,7 +386,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
       await onSaveSnapshot({
         session_id: session.id,
         image_data: exportedData,
-        key_points: points,
+        key_points: activePoints,
         angles: strokeAngles,
         bike_fitting_data: {},
         gait_data: {},
@@ -456,12 +462,12 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
             <div className="p-3 space-y-2">
               <VideoCanvas
                 ref={videoCanvasRef}
-                videoUrl={videoSrc}
+                videoUrl={mediaMode === 'video' ? videoSrc : null}
                 videoRef={sharedVideoRef}
                 imageData={imageData}
-                keyPoints={points}
+                keyPoints={activePoints}
                 angles={strokeAngles}
-                connections={cfg.connections as [string, string][]}
+                connections={activeConnections}
                 onPointsChange={handlePointsChange}
                 showAngles={showAngles}
                 showLabels={showLabels}
@@ -507,6 +513,7 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
               {savedFlash ? 'Guardado!' : saving ? 'Guardando...' : 'Guardar snapshot'}
             </button>
           </div>
+          <BodyAngleSelector angleConfigs={cfg.configs} defaultPoints={cfg.keyPoints} selectedAngleNames={selectedAngleNames} onChange={setSelectedAngleNames} />
         </div>
 
         {strokeSnapshots.length > 0 && (
@@ -520,7 +527,8 @@ function StrokeWorkspace({ session, stroke, references, snapshots, onSaveSnapsho
                   key={snap.id}
                   onClick={() => {
                     if (snap.image_data) { setImageData(snap.image_data); setMediaMode('image'); setVideoSrc(null); }
-                    setPoints(snap.key_points as KeyPoint[]);
+                    setSelectedAngleNames(snap.angles.map((angle) => angle.name));
+                    setPoints(cfg.keyPoints.map((point) => snap.key_points.find((saved) => saved.id === point.id) ?? point));
                     setPhaseLabel(snap.phase_label?.replace(`${prefix} `, '') ?? cfg.phases[0]);
                     setNotes(snap.notes ?? '');
                   }}
@@ -716,6 +724,7 @@ export default function SwimmingAnalysis({
       </div>
 
       <StrokeWorkspace
+        key={`${activeSession.id}:${stroke}`}
         session={activeSession}
         stroke={stroke}
         references={swimRefs}

@@ -158,6 +158,7 @@ export const SWIMMING_FREESTYLE_CONNECTIONS: [string, string][] = [
 ];
 
 export const SWIMMING_BREASTSTROKE_KEY_POINTS: KeyPoint[] = [
+  { id: 'shoulder', label: 'Hombro', x: 0.50, y: 0.33, color: '#8b5cf6' },
   { id: 'head',       label: 'Cabeza',      x: 0.50, y: 0.22, color: '#0ea5e9' },
   { id: 'neck',       label: 'Cuello',      x: 0.50, y: 0.30, color: '#3b82f6' },
   { id: 'shoulder_r', label: 'Hombro Der.', x: 0.38, y: 0.33, color: '#8b5cf6' },
@@ -173,6 +174,7 @@ export const SWIMMING_BREASTSTROKE_KEY_POINTS: KeyPoint[] = [
 ];
 
 export const SWIMMING_BREASTSTROKE_CONNECTIONS: [string, string][] = [
+  ['Cuello', 'Hombro'],
   ['Cabeza', 'Cuello'],
   ['Cuello', 'Hombro Der.'],
   ['Cuello', 'Hombro Izq.'],

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import AngleCanvas from '../shared/AngleCanvas';
 import AnglePanel from '../shared/AnglePanel';
+import BodyAngleSelector from '../shared/BodyAngleSelector';
 import type { KeyPoint, BiomechanicsSession, BiomechanicsSnapshot } from '../../lib/types';
 import type { ReferenceRange } from '../../lib/types';
 import { RUNNING_REAR_ANGLE_CONFIGS, computeAnglesFromPoints } from '../../lib/angleCalculations';
@@ -131,11 +132,16 @@ export default function RunningRearWorkspace({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const angles = computeAnglesFromPoints(points, RUNNING_REAR_ANGLE_CONFIGS, references);
+  const [selectedAngleNames, setSelectedAngleNames] = useState<string[]>([]);
+  const activeConfigs = RUNNING_REAR_ANGLE_CONFIGS.filter((config) => selectedAngleNames.includes(config.name));
+  const activeLabels = new Set(activeConfigs.flatMap((config) => [config.labelP1, config.labelVertex, config.labelP2]));
+  const activePoints = points.filter((point) => activeLabels.has(point.label));
+  const activeConnections = RUNNING_REAR_POINT_CONNECTIONS.filter(([a, b]) => activeLabels.has(a) && activeLabels.has(b));
+  const angles = computeAnglesFromPoints(activePoints, activeConfigs, references);
   const rearAlerts = detectRearAlerts(angles);
-  const pronation = computeProonationIndex(points);
+  const pronation = computeProonationIndex(activePoints);
 
-  const handlePointsChange = useCallback((pts: KeyPoint[]) => { setPoints(pts); }, []);
+  const handlePointsChange = useCallback((pts: KeyPoint[]) => { setPoints((previous) => previous.map((point) => pts.find((updated) => updated.id === point.id) ?? point)); }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,7 +194,7 @@ export default function RunningRearWorkspace({
       await onSaveSnapshot({
         session_id: session.id,
         image_data: imageData,
-        key_points: points,
+        key_points: activePoints,
         angles,
         bike_fitting_data: {},
         gait_data: {},
@@ -249,9 +255,9 @@ export default function RunningRearWorkspace({
             <div className="p-3">
               <AngleCanvas
                 imageData={imageData}
-                keyPoints={points}
+                keyPoints={activePoints}
                 angles={angles}
-                connections={RUNNING_REAR_POINT_CONNECTIONS}
+                connections={activeConnections}
                 onPointsChange={handlePointsChange}
                 showAngles={showAngles}
                 showLabels={showLabels}
@@ -282,6 +288,7 @@ export default function RunningRearWorkspace({
               {savedFlash ? 'Guardado!' : saving ? 'Guardando...' : 'Guardar snapshot'}
             </button>
           </div>
+          <BodyAngleSelector angleConfigs={RUNNING_REAR_ANGLE_CONFIGS} defaultPoints={RUNNING_REAR_KEY_POINTS} selectedAngleNames={selectedAngleNames} onChange={setSelectedAngleNames} />
         </div>
 
         {snapshots.filter((s) => s.phase_label?.startsWith('[Posterior]')).length > 0 && (
@@ -295,7 +302,8 @@ export default function RunningRearWorkspace({
                   key={snap.id}
                   onClick={() => {
                     if (snap.image_data) setImageData(snap.image_data);
-                    setPoints(snap.key_points as KeyPoint[]);
+                    setSelectedAngleNames(snap.angles.map((angle) => angle.name));
+                    setPoints(RUNNING_REAR_KEY_POINTS.map((point) => snap.key_points.find((saved) => saved.id === point.id) ?? point));
                     setPhaseLabel(snap.phase_label?.replace('[Posterior] ', '') ?? PHASES[0]);
                     setNotes(snap.notes ?? '');
                   }}

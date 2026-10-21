@@ -35,6 +35,9 @@ interface VideoCanvasProps {
   trackingState?: TrackingState;
   trackedPointIds?: string[];
   onTrackingStateChange?: (state: TrackingState) => void;
+  lostPointIds?: string[];
+  trajectory?: ({ x: number; y: number } | null)[];
+  hideMeasurements?: boolean;
 }
 
 const POINT_RADIUS = 10;
@@ -42,7 +45,6 @@ const HIT_RADIUS = 24;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 8;
 
-const tracker = new OpticalFlowTracker();
 
 interface Transform {
   scale: number;
@@ -67,8 +69,11 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
   clockMs = 0,
   readonly = false,
   trackingState: externalTrackingState,
-  trackedPointIds: _trackedPointIds,
+
   onTrackingStateChange,
+  lostPointIds,
+  trajectory,
+  hideMeasurements = false,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -93,7 +98,8 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const pinchRef = useRef<{ dist: number; midX: number; midY: number; zoom: number } | null>(null);
   const prevImageDataRef = useRef<string>('');
-  const lastTrackTimeRef = useRef(0);
+  const lastTrackTimeRef = useRef(-1);
+  const tracker = useRef(new OpticalFlowTracker()).current;
 
   const trackingActive = externalTrackingState === 'tracking' || internalTracking;
   const isVideoMode = !!videoUrl;
@@ -111,6 +117,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
       setInternalTracking(true);
       setLostPoints(new Set());
       tracker.reset();
+      lastTrackTimeRef.current = -1;
       onTrackingStateChange?.('tracking');
     },
     stopTracking: () => {
@@ -219,7 +226,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0);
     return ctx.getImageData(0, 0, offscreen.width, offscreen.height);
-  }, []);
+  }, [videoElRef]);
 
   const processTrackingFrame = useCallback(
     (nextDataUrl: string) => {
@@ -253,14 +260,14 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
         onTrackingStateChange?.('lost');
       }
     },
-    [activeTrackedIds, keyPoints, onPointsChange, onTrackingStateChange, getImageDataFromUrl]
+    [activeTrackedIds, keyPoints, onPointsChange, onTrackingStateChange, getImageDataFromUrl, tracker]
   );
 
   const runTrackingFromVideo = useCallback(() => {
     if (!trackingActive || !isVideoMode) return;
-    const now = performance.now();
-    if (now - lastTrackTimeRef.current < 100) return;
-    lastTrackTimeRef.current = now;
+    const video = videoElRef.current;
+    if (!video || video.paused || video.seeking || video.currentTime === lastTrackTimeRef.current) return;
+    lastTrackTimeRef.current = video.currentTime;
 
     const frameData = captureVideoFrameImageData();
     if (!frameData) return;
@@ -288,7 +295,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
     if (newLost.size > 0 && newLost.size >= pointsToTrack.length / 2) {
       onTrackingStateChange?.('lost');
     }
-  }, [trackingActive, isVideoMode, captureVideoFrameImageData, activeTrackedIds, keyPoints, onPointsChange, onTrackingStateChange]);
+  }, [trackingActive, isVideoMode, captureVideoFrameImageData, activeTrackedIds, keyPoints, onPointsChange, onTrackingStateChange, tracker, videoElRef]);
 
   // ── Image-mode tracking (legacy external path) ──
   useEffect(() => {
@@ -334,7 +341,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
     };
     video.addEventListener('loadedmetadata', onLoaded);
     return () => video.removeEventListener('loadedmetadata', onLoaded);
-  }, [isVideoMode, videoUrl]);
+  }, [isVideoMode, videoUrl, videoElRef]);
 
   // Reset zoom/pan when media changes
   useEffect(() => {
@@ -416,6 +423,17 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
         ctx.setLineDash([]);
       }
 
+      if (trajectory?.length) {
+        ctx.beginPath();
+        let connected = false;
+        for (const point of trajectory) {
+          if (!point) { connected = false; continue; }
+          const at = toCanvas(point.x, point.y);
+          if (connected) ctx.lineTo(at.x, at.y); else ctx.moveTo(at.x, at.y);
+          connected = true;
+        }
+        ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 2; ctx.setLineDash([]); ctx.stroke();
+      }
       // Connections
       const pointMap = new Map(keyPoints.map((p) => [p.label, p]));
       for (const [labelA, labelB] of connections) {
@@ -434,7 +452,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
       }
 
       // Angles
-      if (showAngles) {
+      if (showAngles && !hideMeasurements) {
         for (const angle of angles) {
           const [labelP1, labelVertex, labelP2] = angle.point_ids;
           const p1 = pointMap.get(labelP1);
@@ -492,7 +510,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
         const isHovering = hovering === point.id;
         const isSelected = selected === point.id;
         const isTracked = trackingActive && (activeTrackedIds.length === 0 || activeTrackedIds.includes(point.id));
-        const isLost = lostPoints.has(point.id);
+        const isLost = lostPoints.has(point.id) || (lostPointIds?.includes(point.id) ?? false);
         const color = isLost ? '#ef4444' : (point.color ?? '#06b6d4');
         const active = isDragging || isSelected;
 
@@ -617,7 +635,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
       ctx.textAlign = 'left';
       ctx.fillText('TRACKING', trackBadgeX + 26, trackBadgeY + 13);
     }
-  }, [keyPoints, angles, connections, canvasSize, imageLoaded, videoReady, showAngles, showLabels, showGrid, showClock, clockMs, dragging, hovering, selected, toCanvas, trackingActive, activeTrackedIds, lostPoints, getTransform, isVideoMode]);
+  }, [keyPoints, angles, connections, canvasSize, imageLoaded, videoReady, showAngles, showLabels, showGrid, showClock, clockMs, dragging, hovering, selected, toCanvas, trackingActive, activeTrackedIds, lostPoints, lostPointIds, trajectory, hideMeasurements, getTransform, isVideoMode, videoElRef]);
 
   // ── Draw on state changes (image mode) ──
   useEffect(() => {
@@ -675,7 +693,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
 
   // ── Mouse handlers ──
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (readonly) return;
+    if (readonly || (isVideoMode && !videoElRef.current?.paused)) return;
     const pos = getEventPos(e);
     if (!pos) return;
     const id = findClosest(pos.x, pos.y);
@@ -723,7 +741,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
 
   // ── Touch handlers ──
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (readonly && e.touches.length < 2) return;
+    if ((readonly || (isVideoMode && !videoElRef.current?.paused)) && e.touches.length < 2) return;
     if (e.touches.length === 2) {
       // Pinch start
       e.preventDefault();
