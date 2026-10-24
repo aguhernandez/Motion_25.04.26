@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Camera, Save, RotateCcw, Eye, EyeOff, Layers,
-  ChevronDown, ChevronUp, Sparkles, Grid3x3, Clock, Download,
+  ChevronDown, ChevronUp, Grid3x3, Clock, Download,
   Video, Image as ImageIcon, Crosshair, StopCircle,
   AlertTriangle, Undo2, Redo2, Loader2,
 } from 'lucide-react';
@@ -20,11 +20,10 @@ import { computeAnglesFromPoints } from '../../lib/angleCalculations';
 import type { ReferenceRange } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaKind } from '../../lib/mediaFiles';
 
 const MAX_IMAGE_SIZE_MB = 20;
 const MAX_VIDEO_SIZE_MB = 500;
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/avi', 'video/x-msvideo'];
 
 interface AnalysisWorkspaceProps {
   session: BiomechanicsSession;
@@ -36,8 +35,6 @@ interface AnalysisWorkspaceProps {
   onSaveSnapshot: (snap: Omit<BiomechanicsSnapshot, 'id' | 'created_at'>) => Promise<void>;
   extraPanel?: React.ReactNode;
   phaseOptions?: string[];
-  demoImageUrl?: string;
-  demoPoints?: KeyPoint[];
   referenceVideoUrl?: string;
   referenceVideoTitle?: string;
   athlete?: Athlete | null;
@@ -57,8 +54,6 @@ export default function AnalysisWorkspace({
   onSaveSnapshot,
   extraPanel,
   phaseOptions = [],
-  demoImageUrl,
-  demoPoints,
   referenceVideoUrl,
   referenceVideoTitle,
   athlete,
@@ -87,7 +82,6 @@ export default function AnalysisWorkspace({
   const [refVideoPanelOpen, setRefVideoPanelOpen] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [trackingLimit, setTrackingLimit] = useState<TrackingLimit>(120);
   const [independentPointIds, setIndependentPointIds] = useState<string[]>([]);
@@ -201,7 +195,7 @@ export default function AnalysisWorkspace({
     };
 
   const validateImageFile = (file: File): string | null => {
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    if (mediaKind(file) !== 'image') {
       return t.workspace.errorImageFormat;
     }
     if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
@@ -211,7 +205,7 @@ export default function AnalysisWorkspace({
   };
 
   const validateVideoFile = (file: File): string | null => {
-    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+    if (mediaKind(file) !== 'video') {
       return t.workspace.errorVideoFormat;
     }
     if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
@@ -220,9 +214,7 @@ export default function AnalysisWorkspace({
     return null;
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadImageFile = (file: File) => {
     setUploadError(null);
     const err = validateImageFile(file);
     if (err) { setUploadError(err); if (fileInputRef.current) fileInputRef.current.value = ''; return; }
@@ -248,9 +240,13 @@ export default function AnalysisWorkspace({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadImageFile(file);
+    event.target.value = '';
+  };
+
+  const loadVideoFile = (file: File) => {
     setUploadError(null);
     const err = validateVideoFile(file);
     if (err) { setUploadError(err); if (videoInputRef.current) videoInputRef.current.value = ''; return; }
@@ -272,6 +268,12 @@ export default function AnalysisWorkspace({
 
     setTimeout(() => setVideoLoading(false), 800);
     if (videoInputRef.current) videoInputRef.current.value = '';
+  };
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadVideoFile(file);
+    event.target.value = '';
   };
 
   const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
@@ -311,41 +313,8 @@ export default function AnalysisWorkspace({
     recomputeAngles(defaultPoints);
   };
 
-  const loadDemo = useCallback(() => {
-    if (!demoImageUrl) return;
-    setDemoLoading(true);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')?.drawImage(img, 0, 0);
-      const pts = demoPoints ?? defaultPoints;
-      setImageData(canvas.toDataURL('image/jpeg', 0.9));
-      setMediaMode('image');
-      undoStack.current = [];
-      redoStack.current = [];
-      setCanUndo(false);
-      setCanRedo(false);
-      setPoints(pts);
-      recomputeAngles(pts);
-      setDemoLoading(false);
-    };
-    img.onerror = () => {
-      setImageData(demoImageUrl);
-      setMediaMode('image');
-      const pts = demoPoints ?? defaultPoints;
-      setPoints(pts);
-      recomputeAngles(pts);
-      setDemoLoading(false);
-    };
-    img.src = demoImageUrl;
-  }, [demoImageUrl, demoPoints, defaultPoints, recomputeAngles]);
 
-  useEffect(() => {
-    if (demoImageUrl && !imageData) loadDemo();
-  }, []);
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -545,6 +514,8 @@ export default function AnalysisWorkspace({
               )}
               <VideoCanvas
                 ref={videoCanvasRef}
+                onFileSelect={(file) => mediaKind(file) === 'video' ? loadVideoFile(file) : loadImageFile(file)}
+                uploadDisabled={imageLoading || videoLoading || tracking.busy}
                 videoUrl={mediaMode === 'video' ? videoSrc || null : null}
                 videoRef={sharedVideoRef}
                 imageData={imageData}
@@ -579,8 +550,8 @@ export default function AnalysisWorkspace({
           )}
 
           <div className="flex items-center gap-2 px-4 py-3 border-t flex-wrap" style={{ borderColor: th.panelHeaderBorder }}>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={handleImageUpload} />
-            <input ref={videoInputRef} type="file" accept="video/mp4,video/quicktime,video/webm,video/avi" className="sr-only" onChange={handleVideoUpload} />
+            <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleImageUpload} />
+            <input ref={videoInputRef} type="file" accept={VIDEO_ACCEPT} className="sr-only" onChange={handleVideoUpload} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: mediaMode === 'image' ? 'rgba(253,218,54,0.12)' : th.btnBg, border: `1px solid ${mediaMode === 'image' ? 'rgba(253,218,54,0.3)' : th.btnBorder}`, color: mediaMode === 'image' ? '#fdda36' : th.btnText }}>
               <ImageIcon className="w-4 h-4" />
               {t.workspace.image}
@@ -602,12 +573,6 @@ export default function AnalysisWorkspace({
               {t.workspace.live}
               {mediaMode === 'live' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
             </button>
-            {demoImageUrl && (
-              <button onClick={loadDemo} disabled={demoLoading} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg disabled:opacity-50" style={{ background: 'rgba(253,218,54,0.12)', border: '1px solid rgba(253,218,54,0.3)', color: '#fdda36' }}>
-                <Sparkles className="w-4 h-4" />
-                {demoLoading ? t.workspace.demoLoading : t.workspace.demo}
-              </button>
-            )}
             <div className="flex-1" />
             {phaseOptions.length > 0 && (
               <select value={phaseLabel} onChange={(e) => setPhaseLabel(e.target.value)} className="px-2 py-2 text-sm rounded-lg focus:outline-none" style={{ background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText }}>

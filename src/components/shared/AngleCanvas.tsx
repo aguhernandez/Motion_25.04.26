@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import MediaUploadArea from './MediaUploadArea';
 import type { KeyPoint, AngleData } from '../../lib/types';
 import { getStatusColor } from '../../lib/angleCalculations';
 
@@ -12,6 +13,8 @@ interface AngleCanvasProps {
   showAngles?: boolean;
   showLabels?: boolean;
   readonly?: boolean;
+  onFileSelect?: (file: File) => void;
+  uploadDisabled?: boolean;
 }
 
 const POINT_RADIUS = 10;
@@ -36,6 +39,8 @@ export default function AngleCanvas({
   showAngles = true,
   showLabels = true,
   readonly = false,
+  onFileSelect,
+  uploadDisabled = false,
 }: AngleCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -488,11 +493,12 @@ export default function AngleCanvas({
     }
   };
 
+  const hasMedia = !!imageData;
   const cursor = dragging ? 'grabbing' : isPanning ? 'grabbing' : hovering ? 'grab' : readonly ? 'default' : 'crosshair';
 
   return (
     <div className="w-full select-none">
-      <div className="flex items-center gap-2 mb-2 px-1">
+      <div className="flex items-center gap-2 mb-2 px-1" style={{ display: hasMedia ? undefined : 'none' }}>
         {!readonly && selected && (
           <>
             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: keyPoints.find((p) => p.id === selected)?.color ?? '#06b6d4' }} />
@@ -528,7 +534,8 @@ export default function AngleCanvas({
           width={canvasSize.w}
           height={canvasSize.h}
           className="w-full h-full"
-          style={{ touchAction: 'none', cursor, display: 'block' }}
+          style={{ touchAction: 'none', cursor, display: 'block', visibility: hasMedia ? 'visible' : 'hidden' }}
+          aria-hidden={!hasMedia}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -538,6 +545,7 @@ export default function AngleCanvas({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         />
+        {!hasMedia && <div className="absolute inset-0"><MediaUploadArea onFileSelect={onFileSelect} disabled={uploadDisabled || readonly} /></div>}
       </div>
     </div>
   );

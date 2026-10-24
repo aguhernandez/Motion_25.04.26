@@ -13,6 +13,7 @@ import type { CyclingAngleConfig } from '../../lib/angleCalculations';
 import type { ReferenceRange } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { IMAGE_ACCEPT, mediaFileError } from '../../lib/mediaFiles';
 
 interface CustomAnalysisProps {
   sessions: BiomechanicsSession[];
@@ -90,12 +91,18 @@ function CustomWorkspace({
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadImageFile = (file: File) => {
+    const error = mediaFileError(file, false);
+    if (error) { alert(error); return; }
     const reader = new FileReader();
     reader.onload = (ev) => setImageData(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadImageFile(file);
+    event.target.value = '';
   };
 
   const startCamera = async () => {
@@ -175,12 +182,12 @@ function CustomWorkspace({
             </div>
           ) : (
             <div className="p-3">
-              <AngleCanvas imageData={imageData} keyPoints={points} angles={showAngles ? angles : []} connections={connections} onPointsChange={handlePointsChange} showAngles={showAngles} showLabels={showLabels} />
+              <AngleCanvas onFileSelect={loadImageFile} imageData={imageData} keyPoints={points} angles={showAngles ? angles : []} connections={connections} onPointsChange={handlePointsChange} showAngles={showAngles} showLabels={showLabels} />
             </div>
           )}
 
           <div className="flex items-center gap-2 px-4 py-3 border-t flex-wrap" style={{ borderColor: th.panelHeaderBorder }}>
-            <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImageUpload} />
+            <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleImageUpload} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
               <Upload className="w-4 h-4" />
               Subir imagen

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Camera, Upload, Save, RotateCcw, Eye, EyeOff, Layers,
-  Wind, ChevronDown, ChevronUp, Sparkles, BarChart3, Info,
+  Sparkles, Wind, ChevronDown, ChevronUp, BarChart3, Info,
 } from 'lucide-react';
 import type { Athlete } from '../../lib/types';
 import type { AeroInputs, AeroPosition } from '../../lib/aeroCalculations';
@@ -20,13 +20,12 @@ import AeroPowerCurve from './AeroPowerCurve';
 import type { KeyPoint } from '../../lib/types';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { IMAGE_ACCEPT, mediaFileError } from '../../lib/mediaFiles';
 
 interface AerodynamicsAnalysisProps {
   athletes: Athlete[];
 }
 
-const DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/5380651/pexels-photo-5380651.jpeg?auto=compress&cs=tinysrgb&w=960';
 
 type TabId = 'capture' | 'compare' | 'simulation';
 
@@ -44,7 +43,6 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [selectedAthleteId, setSelectedAthleteId] = useState('');
   const [metricsPanelOpen, setMetricsPanelOpen] = useState(true);
 
@@ -83,12 +81,18 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
 
   const handlePointsChange = useCallback((pts: KeyPoint[]) => { setPoints(pts); }, []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadImageFile = (file: File) => {
+    const error = mediaFileError(file, false);
+    if (error) { alert(error); return; }
     const reader = new FileReader();
     reader.onload = (ev) => { setImageData(ev.target?.result as string); setPoints(AERO_KEY_POINTS); };
     reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadImageFile(file);
+    event.target.value = '';
   };
 
   const startCamera = async () => {
@@ -111,23 +115,8 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
     setCameraActive(false);
   };
 
-  const loadDemo = useCallback(() => {
-    setDemoLoading(true);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      canvas.getContext('2d')?.drawImage(img, 0, 0);
-      setImageData(canvas.toDataURL('image/jpeg', 0.9));
-      setPoints(AERO_KEY_POINTS);
-      setDemoLoading(false);
-    };
-    img.onerror = () => { setImageData(DEMO_IMAGE_URL); setPoints(AERO_KEY_POINTS); setDemoLoading(false); };
-    img.src = DEMO_IMAGE_URL;
-  }, []);
 
-  useEffect(() => { if (!imageData) loadDemo(); }, []);
+
 
   const handleSave = async () => {
     if (!positionLabel.trim()) { alert('Ingresá un nombre para esta posición'); return; }
@@ -266,7 +255,7 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
                 </div>
               ) : (
                 <div className="p-3">
-                  <AngleCanvas
+                  <AngleCanvas onFileSelect={loadImageFile}
                     imageData={imageData}
                     keyPoints={points}
                     angles={[]}
@@ -279,7 +268,7 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
               )}
 
               <div className="flex items-center gap-2 px-4 py-3 border-t flex-wrap" style={{ borderColor: th.panelHeaderBorder }}>
-                <input ref={fileInputRef} type="file" accept="image/*,video/*" className="sr-only" onChange={handleImageUpload} />
+                <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleImageUpload} />
                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
                   <Upload className="w-4 h-4" />
                   Subir imagen
@@ -287,10 +276,6 @@ export default function AerodynamicsAnalysis({ athletes }: AerodynamicsAnalysisP
                 <button onClick={startCamera} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
                   <Camera className="w-4 h-4" />
                   Cámara
-                </button>
-                <button onClick={loadDemo} disabled={demoLoading} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all disabled:opacity-50" style={{ background: 'rgba(253,218,54,0.1)', border: '1px solid rgba(253,218,54,0.3)', color: '#fdda36' }}>
-                  <Sparkles className="w-4 h-4" />
-                  {demoLoading ? 'Cargando...' : 'Demo'}
                 </button>
               </div>
             </div>

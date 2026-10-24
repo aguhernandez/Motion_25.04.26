@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   Camera, Upload, Save, RotateCcw, Eye, EyeOff, Layers,
-  Sparkles, AlertTriangle, CheckCircle2, Info,
+  AlertTriangle, CheckCircle2, Info,
 } from 'lucide-react';
 import AngleCanvas from '../shared/AngleCanvas';
 import AnglePanel from '../shared/AnglePanel';
@@ -12,10 +12,10 @@ import { CYCLING_FRONTAL_ANGLE_CONFIGS, computeAnglesFromPoints } from '../../li
 import {
   CYCLING_FRONTAL_KEY_POINTS,
   CYCLING_FRONTAL_POINT_CONNECTIONS,
-  CYCLING_FRONTAL_DEMO_IMAGE_URL,
 } from '../../data/defaultKeyPoints';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { IMAGE_ACCEPT, mediaFileError } from '../../lib/mediaFiles';
 
 interface CyclingFrontalWorkspaceProps {
   session: BiomechanicsSession;
@@ -94,7 +94,6 @@ export default function CyclingFrontalWorkspace({
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -109,12 +108,18 @@ export default function CyclingFrontalWorkspace({
 
   const handlePointsChange = useCallback((pts: KeyPoint[]) => { setPoints((previous) => previous.map((point) => pts.find((updated) => updated.id === point.id) ?? point)); }, []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadImageFile = (file: File) => {
+    const error = mediaFileError(file, false);
+    if (error) { alert(error); return; }
     const reader = new FileReader();
     reader.onload = (ev) => { setImageData(ev.target?.result as string); setPoints(CYCLING_FRONTAL_KEY_POINTS); };
     reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadImageFile(file);
+    event.target.value = '';
   };
 
   const startCamera = async () => {
@@ -136,23 +141,8 @@ export default function CyclingFrontalWorkspace({
     setCameraActive(false);
   };
 
-  const loadDemo = useCallback(() => {
-    setDemoLoading(true);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      canvas.getContext('2d')?.drawImage(img, 0, 0);
-      setImageData(canvas.toDataURL('image/jpeg', 0.9));
-      setPoints(CYCLING_FRONTAL_KEY_POINTS);
-      setDemoLoading(false);
-    };
-    img.onerror = () => { setImageData(CYCLING_FRONTAL_DEMO_IMAGE_URL); setPoints(CYCLING_FRONTAL_KEY_POINTS); setDemoLoading(false); };
-    img.src = CYCLING_FRONTAL_DEMO_IMAGE_URL;
-  }, []);
 
-  useEffect(() => { if (!imageData) loadDemo(); }, []);
+
 
   const handleSave = async () => {
     setSaving(true);
@@ -219,7 +209,7 @@ export default function CyclingFrontalWorkspace({
             </div>
           ) : (
             <div className="p-3">
-              <AngleCanvas
+              <AngleCanvas onFileSelect={loadImageFile}
                 imageData={imageData}
                 keyPoints={activePoints}
                 angles={angles}
@@ -232,18 +222,14 @@ export default function CyclingFrontalWorkspace({
           )}
 
           <div className="flex items-center gap-2 px-4 py-3 border-t flex-wrap" style={{ borderColor: th.panelHeaderBorder }}>
-            <input ref={fileInputRef} type="file" accept="image/*,video/*" className="sr-only" onChange={handleImageUpload} />
+            <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleImageUpload} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
               <Upload className="w-4 h-4" />
-              Subir imagen / video
+              Cargar imagen
             </button>
             <button onClick={startCamera} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
               <Camera className="w-4 h-4" />
               Cámara
-            </button>
-            <button onClick={loadDemo} disabled={demoLoading} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg disabled:opacity-50" style={{ background: 'rgba(253,218,54,0.1)', border: '1px solid rgba(253,218,54,0.3)', color: '#fdda36' }}>
-              <Sparkles className="w-4 h-4" />
-              {demoLoading ? 'Cargando...' : 'Demo'}
             </button>
             <div className="flex-1" />
             <select value={phaseLabel} onChange={(e) => setPhaseLabel(e.target.value)} className="px-2 py-2 text-sm rounded-lg focus:outline-none" style={{ background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText }}>

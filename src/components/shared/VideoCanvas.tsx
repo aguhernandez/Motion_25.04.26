@@ -2,6 +2,7 @@ import {
   useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef,
 } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import MediaUploadArea from './MediaUploadArea';
 import type { KeyPoint, AngleData } from '../../lib/types';
 import { getStatusColor } from '../../lib/angleCalculations';
 import { OpticalFlowTracker } from '../../lib/opticalFlow';
@@ -32,6 +33,8 @@ interface VideoCanvasProps {
   showClock?: boolean;
   clockMs?: number;
   readonly?: boolean;
+  onFileSelect?: (file: File) => void;
+  uploadDisabled?: boolean;
   trackingState?: TrackingState;
   trackedPointIds?: string[];
   onTrackingStateChange?: (state: TrackingState) => void;
@@ -68,6 +71,8 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
   showClock = false,
   clockMs = 0,
   readonly = false,
+  onFileSelect,
+  uploadDisabled = false,
   trackingState: externalTrackingState,
 
   onTrackingStateChange,
@@ -838,11 +843,12 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
     }
   };
 
+  const hasMedia = !!(imageData || videoUrl);
   const cursor = dragging ? 'grabbing' : isPanning ? 'grabbing' : hovering ? 'grab' : readonly ? 'default' : 'crosshair';
 
   return (
     <div className="w-full select-none">
-      <div className="flex items-center gap-2 mb-2 px-1">
+      <div className="flex items-center gap-2 mb-2 px-1" style={{ display: hasMedia ? undefined : 'none' }}>
         {!readonly && selected && !trackingActive && (
           <>
             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: keyPoints.find((p) => p.id === selected)?.color ?? '#06b6d4' }} />
@@ -887,7 +893,8 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
           width={canvasSize.w}
           height={canvasSize.h}
           className="w-full h-full"
-          style={{ touchAction: 'none', cursor, display: 'block' }}
+          style={{ touchAction: 'none', cursor, display: 'block', visibility: hasMedia ? 'visible' : 'hidden' }}
+          aria-hidden={!hasMedia}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -897,6 +904,7 @@ const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         />
+        {!hasMedia && <div className="absolute inset-0"><MediaUploadArea allowVideo onFileSelect={onFileSelect} disabled={uploadDisabled || readonly} /></div>}
       </div>
 
       {isVideoMode && (

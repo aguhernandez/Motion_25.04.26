@@ -76,7 +76,6 @@ export default function Dashboard({ sessions, athletes, onViewChange, onNewSessi
       icon: Bike,
       count: cyclingSessions.length,
       accent: '81,65,99',
-      img: 'https://images.pexels.com/photos/5380651/pexels-photo-5380651.jpeg?auto=compress&cs=tinysrgb&w=400',
       tags: ['Ruta', 'MTB', 'Triatlón'],
     },
     {
@@ -86,7 +85,6 @@ export default function Dashboard({ sessions, athletes, onViewChange, onNewSessi
       icon: Activity,
       count: runningSessions.length,
       accent: '81,65,99',
-      img: 'https://images.pexels.com/photos/2168292/pexels-photo-2168292.jpeg?auto=compress&cs=tinysrgb&w=400',
       tags: ['Running', 'Trail', 'Pista'],
     },
     {
@@ -96,7 +94,6 @@ export default function Dashboard({ sessions, athletes, onViewChange, onNewSessi
       icon: Layers,
       count: customSessions.length,
       accent: '81,65,99',
-      img: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg?auto=compress&cs=tinysrgb&w=400',
       tags: ['Natación', 'Golf', '+ deporte'],
     },
   ];
@@ -128,7 +125,7 @@ export default function Dashboard({ sessions, athletes, onViewChange, onNewSessi
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {quickCards.map(({ view, title, desc, icon: Icon, count, img, tags }) => (
+        {quickCards.map(({ view, title, desc, icon: Icon, count, tags }) => (
           <button
             key={view}
             onClick={() => onViewChange(view)}
@@ -150,12 +147,6 @@ export default function Dashboard({ sessions, athletes, onViewChange, onNewSessi
               (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
             }}
           >
-            {darkMode && (
-              <div className="absolute inset-0 opacity-15 pointer-events-none">
-                <img src={img} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 to-slate-900/70" />
-              </div>
-            )}
             <div className="relative">
               <div className="flex items-center justify-between mb-4">
                 <div

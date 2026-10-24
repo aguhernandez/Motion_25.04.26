@@ -1,33 +1,5 @@
 import type { KeyPoint } from '../lib/types';
 
-export const CYCLING_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/5380651/pexels-photo-5380651.jpeg?auto=compress&cs=tinysrgb&w=960';
-
-export const CYCLING_DEMO_POINTS: KeyPoint[] = [
-  { id: 'hip',        label: 'Cadera',    x: 0.52, y: 0.38, color: '#ef4444' },
-  { id: 'knee',       label: 'Rodilla',   x: 0.49, y: 0.56, color: '#f59e0b' },
-  { id: 'ankle',      label: 'Tobillo',   x: 0.51, y: 0.73, color: '#10b981' },
-  { id: 'metatarsus', label: 'Metatarso', x: 0.54, y: 0.82, color: '#06b6d4' },
-  { id: 'shoulder',   label: 'Hombro',    x: 0.43, y: 0.24, color: '#8b5cf6' },
-  { id: 'elbow',      label: 'Codo',      x: 0.34, y: 0.34, color: '#ec4899' },
-  { id: 'wrist',      label: 'Muñeca',    x: 0.28, y: 0.43, color: '#f97316' },
-  { id: 'neck',       label: 'Cuello',    x: 0.45, y: 0.16, color: '#3b82f6' },
-];
-
-export const RUNNING_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/2168292/pexels-photo-2168292.jpeg?auto=compress&cs=tinysrgb&w=960';
-
-export const RUNNING_DEMO_POINTS: KeyPoint[] = [
-  { id: 'hip',        label: 'Cadera',    x: 0.52, y: 0.42, color: '#ef4444' },
-  { id: 'knee',       label: 'Rodilla',   x: 0.51, y: 0.60, color: '#f59e0b' },
-  { id: 'ankle',      label: 'Tobillo',   x: 0.50, y: 0.76, color: '#10b981' },
-  { id: 'metatarsus', label: 'Metatarso', x: 0.53, y: 0.86, color: '#06b6d4' },
-  { id: 'shoulder',   label: 'Hombro',    x: 0.44, y: 0.27, color: '#8b5cf6' },
-  { id: 'elbow',      label: 'Codo',      x: 0.36, y: 0.37, color: '#ec4899' },
-  { id: 'neck',       label: 'Cuello',    x: 0.49, y: 0.19, color: '#3b82f6' },
-  { id: 'head',       label: 'Cabeza',    x: 0.48, y: 0.10, color: '#0ea5e9' },
-];
-
 export const CYCLING_KEY_POINTS: KeyPoint[] = [
   { id: 'hip', label: 'Cadera', x: 0.45, y: 0.35, color: '#ef4444' },
   { id: 'knee', label: 'Rodilla', x: 0.42, y: 0.55, color: '#f59e0b' },
@@ -70,9 +42,6 @@ export const RUNNING_POINT_CONNECTIONS: [string, string][] = [
   ['Tobillo', 'Metatarso'],
 ];
 
-export const CYCLING_FRONTAL_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/3048203/pexels-photo-3048203.jpeg?auto=compress&cs=tinysrgb&w=960';
-
 export const CYCLING_FRONTAL_KEY_POINTS: KeyPoint[] = [
   { id: 'shoulder_r', label: 'Hombro Der.', x: 0.38, y: 0.22, color: '#8b5cf6' },
   { id: 'shoulder_l', label: 'Hombro Izq.', x: 0.62, y: 0.22, color: '#ec4899' },
@@ -96,9 +65,6 @@ export const CYCLING_FRONTAL_POINT_CONNECTIONS: [string, string][] = [
   ['Rodilla Der.', 'Tobillo Der.'],
   ['Rodilla Izq.', 'Tobillo Izq.'],
 ];
-
-export const RUNNING_REAR_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/2168292/pexels-photo-2168292.jpeg?auto=compress&cs=tinysrgb&w=960';
 
 export const RUNNING_REAR_KEY_POINTS: KeyPoint[] = [
   { id: 'shoulder_r', label: 'Hombro Der.', x: 0.38, y: 0.24, color: '#8b5cf6' },
@@ -125,9 +91,6 @@ export const RUNNING_REAR_POINT_CONNECTIONS: [string, string][] = [
   ['Tobillo Der.', 'Talón Der.'],
   ['Tobillo Izq.', 'Talón Izq.'],
 ];
-
-export const SWIMMING_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/1263349/pexels-photo-1263349.jpeg?auto=compress&cs=tinysrgb&w=960';
 
 export const SWIMMING_FREESTYLE_KEY_POINTS: KeyPoint[] = [
   { id: 'head',       label: 'Cabeza',      x: 0.88, y: 0.44, color: '#0ea5e9' },
@@ -188,9 +151,6 @@ export const SWIMMING_BREASTSTROKE_CONNECTIONS: [string, string][] = [
   ['Rodilla', 'Tobillo'],
   ['Tobillo', 'Pie'],
 ];
-
-export const WEIGHTLIFTING_DEMO_IMAGE_URL =
-  'https://images.pexels.com/photos/2261477/pexels-photo-2261477.jpeg?auto=compress&cs=tinysrgb&w=960';
 
 export const WEIGHTLIFTING_OLYMPIC_KEY_POINTS: KeyPoint[] = [
   { id: 'head',       label: 'Cabeza',    x: 0.52, y: 0.08, color: '#0ea5e9' },

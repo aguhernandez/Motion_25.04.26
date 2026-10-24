@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Plus, ChevronRight, Camera, Upload, Save, RotateCcw, Eye, EyeOff, Layers, Sparkles, AlertTriangle, CheckCircle2, Info, PlayCircle, Grid3x3 as Grid3X3, Clock, Download, Dumbbell } from 'lucide-react';
+import { Plus, ChevronRight, Camera, Upload, Save, RotateCcw, Eye, EyeOff, Layers, AlertTriangle, CheckCircle2, Info, PlayCircle, Grid3x3 as Grid3X3, Clock, Download, Dumbbell } from 'lucide-react';
 import type { Athlete, BiomechanicsSession, BiomechanicsSnapshot, KeyPoint } from '../../lib/types';
 import type { ReferenceRange } from '../../lib/types';
 import VideoCanvas, { type VideoCanvasHandle } from '../shared/VideoCanvas';
@@ -9,6 +9,8 @@ import BodyAngleSelector from '../shared/BodyAngleSelector';
 import WeightliftingDataPanel, { type LiftData } from './WeightliftingDataPanel';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, mediaKind, mediaFileError } from '../../lib/mediaFiles';
+import MediaUploadArea from '../shared/MediaUploadArea';
 import { computeAnglesFromPoints } from '../../lib/angleCalculations';
 import {
   WEIGHTLIFTING_SNATCH_CONFIGS,
@@ -20,7 +22,6 @@ import {
   WEIGHTLIFTING_POWER_CLEAN_CONFIGS,
 } from '../../lib/angleCalculations';
 import {
-  WEIGHTLIFTING_DEMO_IMAGE_URL,
   WEIGHTLIFTING_OLYMPIC_KEY_POINTS,
   WEIGHTLIFTING_OLYMPIC_CONNECTIONS,
   WEIGHTLIFTING_SQUAT_KEY_POINTS,
@@ -207,7 +208,6 @@ function detectLiftAlerts(
 }
 
 function EmptyState({ onNewSession, th }: { onNewSession: () => void; th: ReturnType<typeof getTheme> }) {
-  const [videoOpen, setVideoOpen] = useState(false);
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -223,28 +223,7 @@ function EmptyState({ onNewSession, th }: { onNewSession: () => void; th: Return
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden" style={{ border: `1px solid ${th.panelBorder}` }}>
-            {videoOpen ? (
-              <div className="aspect-video">
-                <iframe className="w-full h-full" src="https://www.youtube.com/embed/4G3RDMGPAHo?autoplay=1" title="Olympic Weightlifting Biomechanics" allow="autoplay; encrypted-media" allowFullScreen />
-              </div>
-            ) : (
-              <div className="relative aspect-video cursor-pointer group" onClick={() => setVideoOpen(true)}>
-                <img src={WEIGHTLIFTING_DEMO_IMAGE_URL} alt="Weightlifting preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/55 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <PlayCircle className="w-10 h-10 text-white" />
-                    </div>
-                    <span className="text-sm text-white font-medium">Ver biomecánica del levantamiento</span>
-                  </div>
-                </div>
-                <div className="absolute top-3 left-3">
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full" style={{ background: '#ef4444', color: '#fff' }}>Demo</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <MediaUploadArea allowVideo onStartSession={onNewSession} />
 
           <div className="p-4 rounded-xl" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
             <h3 className="text-sm font-semibold mb-3" style={{ color: th.title }}>Referencias biomecánicas</h3>
@@ -344,7 +323,6 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [liftData, setLiftData] = useState<LiftData>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -367,9 +345,9 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
 
   const handlePointsChange = useCallback((pts: KeyPoint[]) => setPoints((previous) => previous.map((point) => pts.find((updated) => updated.id === point.id) ?? point)), []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const loadImageFile = (file: File) => {
+    const error = mediaFileError(file, false);
+    if (error) { alert(error); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       setImageData(ev.target?.result as string);
@@ -380,9 +358,15 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
     reader.readAsDataURL(file);
   };
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadImageFile(file);
+    event.target.value = '';
+  };
+
+  const loadVideoFile = (file: File) => {
+    const error = mediaFileError(file, true);
+    if (error) { alert(error); return; }
     if (videoSrc) URL.revokeObjectURL(videoSrc);
     const url = URL.createObjectURL(file);
     setVideoSrc(url);
@@ -392,6 +376,12 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + 10);
     setVideoExpiresAt(expiry);
+  };
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) loadVideoFile(file);
+    event.target.value = '';
   };
 
   const handleFrameChange = useCallback((_frameDataUrl: string, timeMs: number) => {
@@ -428,29 +418,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
     setCameraActive(false);
   };
 
-  const loadDemo = useCallback(() => {
-    setDemoLoading(true);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')?.drawImage(img, 0, 0);
-      setImageData(canvas.toDataURL('image/jpeg', 0.9));
-      setMediaMode('image');
-      setVideoSrc(null);
-      setPoints(cfg.keyPoints as KeyPoint[]);
-      setDemoLoading(false);
-    };
-    img.onerror = () => {
-      setImageData(WEIGHTLIFTING_DEMO_IMAGE_URL);
-      setMediaMode('image');
-      setPoints(cfg.keyPoints as KeyPoint[]);
-      setDemoLoading(false);
-    };
-    img.src = WEIGHTLIFTING_DEMO_IMAGE_URL;
-  }, [cfg]);
+
 
   const handleSave = async () => {
     setSaving(true);
@@ -538,6 +506,7 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
                 videoUrl={mediaMode === 'video' ? videoSrc : null}
                 videoRef={sharedVideoRef}
                 imageData={imageData}
+                onFileSelect={(file) => mediaKind(file) === 'video' ? loadVideoFile(file) : loadImageFile(file)}
                 keyPoints={activePoints}
                 angles={liftAngles}
                 connections={activeConnections}
@@ -559,8 +528,8 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
           )}
 
           <div className="flex items-center gap-2 px-4 py-3 border-t flex-wrap" style={{ borderColor: th.panelHeaderBorder }}>
-            <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleImageUpload} />
-            <input ref={videoInputRef} type="file" accept="video/*" className="sr-only" onChange={handleVideoUpload} />
+            <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} className="sr-only" onChange={handleImageUpload} />
+            <input ref={videoInputRef} type="file" accept={VIDEO_ACCEPT} className="sr-only" onChange={handleVideoUpload} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
               <Upload className="w-4 h-4" />
               Imagen
@@ -572,10 +541,6 @@ function LiftWorkspace({ session, lift, references, snapshots, onSaveSnapshot }:
             <button onClick={startCamera} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg" style={{ background: th.btnBg, border: `1px solid ${th.btnBorder}`, color: th.btnText }}>
               <Camera className="w-4 h-4" />
               Cámara
-            </button>
-            <button onClick={loadDemo} disabled={demoLoading} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg disabled:opacity-50" style={{ background: `${cfg.color}18`, border: `1px solid ${cfg.color}40`, color: cfg.color }}>
-              <Sparkles className="w-4 h-4" />
-              {demoLoading ? 'Cargando...' : 'Demo'}
             </button>
             <div className="flex-1" />
             <select value={phaseLabel} onChange={(e) => setPhaseLabel(e.target.value)} className="px-2 py-2 text-sm rounded-lg focus:outline-none" style={{ background: th.inputBg, border: `1px solid ${th.inputBorder}`, color: th.inputText }}>

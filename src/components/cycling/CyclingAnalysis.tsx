@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Bike, Plus, ChevronRight, PlayCircle, Camera, AlignCenter, Square } from 'lucide-react';
+import { Bike, Plus, ChevronRight, Camera, AlignCenter, Square } from 'lucide-react';
 import type { Athlete, BiomechanicsSession, BiomechanicsSnapshot } from '../../lib/types';
 import type { ReferenceRange } from '../../lib/types';
 import { CYCLING_ANGLE_CONFIGS } from '../../lib/angleCalculations';
-import { CYCLING_KEY_POINTS, CYCLING_POINT_CONNECTIONS, CYCLING_DEMO_IMAGE_URL, CYCLING_DEMO_POINTS } from '../../data/defaultKeyPoints';
+import { CYCLING_KEY_POINTS, CYCLING_POINT_CONNECTIONS } from '../../data/defaultKeyPoints';
 import AnalysisWorkspace from '../shared/AnalysisWorkspace';
 import BikeFittingPanel from './BikeFittingPanel';
 import CyclingFrontalWorkspace from './CyclingFrontalWorkspace';
 import { useT } from '../../lib/LanguageContext';
 import { getTheme } from '../../lib/theme';
+import MediaUploadArea from '../shared/MediaUploadArea';
 
 interface CyclingAnalysisProps {
   sessions: BiomechanicsSession[];
@@ -29,11 +30,6 @@ const CYCLING_PHASES = [
   'Recuperación',
 ];
 
-const DEMO_IMAGES = [
-  { url: 'https://images.pexels.com/photos/5380651/pexels-photo-5380651.jpeg?auto=compress&cs=tinysrgb&w=800', caption: 'Posición de pedaleo — vista lateral' },
-  { url: 'https://images.pexels.com/photos/3048203/pexels-photo-3048203.jpeg?auto=compress&cs=tinysrgb&w=800', caption: 'Bike fitting — extensión de rodilla' },
-  { url: 'https://images.pexels.com/photos/248547/pexels-photo-248547.jpeg?auto=compress&cs=tinysrgb&w=800', caption: 'Ciclismo de ruta — postura aerodinámica' },
-];
 
 const ANGLE_REFS = [
   { name: 'Rodilla BDC', range: '30–40°' },
@@ -47,7 +43,6 @@ const ANGLE_REFS = [
 type CyclingView = 'lateral' | 'frontal';
 
 function EmptyState({ onNewSession, th }: { onNewSession: () => void; th: ReturnType<typeof getTheme> }) {
-  const [videoOpen, setVideoOpen] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -62,30 +57,9 @@ function EmptyState({ onNewSession, th }: { onNewSession: () => void; th: Return
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <div className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden" style={{ border: `1px solid ${th.panelBorder}` }}>
-            {videoOpen ? (
-              <div className="aspect-video">
-                <iframe className="w-full h-full" src="https://www.youtube.com/embed/8Zx5s3gR-k0?autoplay=1" title="Bike Fitting" allow="autoplay; encrypted-media" allowFullScreen />
-              </div>
-            ) : (
-              <div className="relative aspect-video cursor-pointer group" onClick={() => setVideoOpen(true)}>
-                <img src="https://images.pexels.com/photos/5380651/pexels-photo-5380651.jpeg?auto=compress&cs=tinysrgb&w=800" alt="preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/50 group-hover:bg-black/35 transition-colors flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <PlayCircle className="w-10 h-10 text-white" />
-                    </div>
-                    <span className="text-sm text-white font-medium">Ver ejemplo de Bike Fitting</span>
-                  </div>
-                </div>
-                <div className="absolute top-3 left-3">
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full" style={{ background: '#fdda36', color: '#514163' }}>Demo</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <MediaUploadArea allowVideo onStartSession={onNewSession} />
 
           <div className="p-4 rounded-xl" style={{ background: th.panelBg, border: `1px solid ${th.panelBorder}` }}>
             <h3 className="text-sm font-semibold mb-3" style={{ color: th.title }}>Ángulos predefinidos</h3>
@@ -103,16 +77,6 @@ function EmptyState({ onNewSession, th }: { onNewSession: () => void; th: Return
           </div>
         </div>
 
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold" style={{ color: th.title }}>Ejemplos de análisis</h3>
-          {DEMO_IMAGES.map((img) => (
-            <div key={img.url} className="relative rounded-xl overflow-hidden group" style={{ border: `1px solid ${th.panelBorder}` }}>
-              <img src={img.url} alt={img.caption} className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <p className="absolute bottom-2 left-3 text-xs text-white/90 font-medium">{img.caption}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="flex flex-col items-center justify-center py-6 text-center border-t" style={{ borderColor: th.panelBorder }}>
@@ -239,8 +203,6 @@ export default function CyclingAnalysis({ sessions, snapshots, references, onNew
           snapshots={snapshots}
           onSaveSnapshot={onSaveSnapshot}
           phaseOptions={CYCLING_PHASES}
-          demoImageUrl={CYCLING_DEMO_IMAGE_URL}
-          demoPoints={CYCLING_DEMO_POINTS}
           referenceVideoUrl="https://www.youtube.com/embed/8Zx5s3gR-k0"
           referenceVideoTitle="Bike fitting — fundamentos de biomecánica"
           extraPanel={<BikeFittingPanel data={bikeFittingData} onChange={setBikeFittingData} athlete={activeSession.athlete} />}
